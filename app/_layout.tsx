@@ -1,56 +1,81 @@
-import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import * as Notifications from 'expo-notifications';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import 'react-native-reanimated';
+import { useAuth } from '@/hooks/useAuth';
+import { useTheme } from '@/hooks/useTheme';
+import { onboardingStore } from '@/store/onboardingStore';
+import { ensureReminderChannel } from '@/lib/notifications/permissions';
+import { startAutoSync, stopAutoSync } from '@/lib/sync/syncEngine';
 
-import { useColorScheme } from '@/components/useColorScheme';
-
-export {
-  // Catch any errors thrown by the Layout component.
-  ErrorBoundary,
-} from 'expo-router';
+export { ErrorBoundary } from 'expo-router';
 
 export const unstable_settings = {
-  // Ensure that reloading on `/modal` keeps a back button present.
-  initialRouteName: '(tabs)',
+  initialRouteName: 'index',
 };
 
-// Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
+/**
+ * Root layout: gates onboarding -> login -> app based on state via
+ * Stack.Protected (design doc / file structure §1). Also owns the notification
+ * handler and the automatic sync watcher. The `index` route does the actual
+ * redirecting, so "/" always resolves to a real screen.
+ */
 export default function RootLayout() {
-  const [loaded, error] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
-
-  // Expo Router uses Error Boundaries to catch errors in the navigation tree.
-  useEffect(() => {
-    if (error) throw error;
-  }, [error]);
+  const { isDark } = useTheme();
+  const { phase, userId } = useAuth();
+  const hasCompletedOnboarding = onboardingStore((state) => state.hasCompletedOnboarding);
 
   useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
+    void SplashScreen.hideAsync();
+  }, []);
+
+  useEffect(() => {
+    void ensureReminderChannel();
+  }, []);
+
+  useEffect(() => {
+    if (userId) {
+      startAutoSync();
+      return stopAutoSync;
     }
-  }, [loaded]);
+  }, [userId]);
 
-  if (!loaded) {
-    return null;
-  }
-
-  return <RootLayoutNav />;
-}
-
-function RootLayoutNav() {
-  const colorScheme = useColorScheme();
+  const navTheme = isDark ? DarkTheme : DefaultTheme;
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+    <ThemeProvider value={navTheme}>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Protected guard={!hasCompletedOnboarding}>
+          <Stack.Screen name="onboarding" />
+        </Stack.Protected>
+        <Stack.Protected guard={hasCompletedOnboarding && phase === 'unauthenticated'}>
+          <Stack.Screen name="(auth)" />
+        </Stack.Protected>
+        <Stack.Protected guard={hasCompletedOnboarding && phase === 'authenticated'}>
+          <Stack.Screen name="(app)" />
+          <Stack.Screen
+            name="modal/check-in"
+            options={{ presentation: 'modal', headerShown: false }}
+          />
+          <Stack.Screen
+            name="modal/customize-home-stats"
+            options={{ presentation: 'modal', headerShown: false }}
+          />
+        </Stack.Protected>
+        <Stack.Screen name="index" />
       </Stack>
     </ThemeProvider>
   );
