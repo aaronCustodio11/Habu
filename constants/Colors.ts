@@ -44,6 +44,14 @@ export interface ThemeColors {
   stateOfflineBg: string;
   /** Rare tint used on glass for completed/active chrome (never a hue) */
   glassTint: string;
+  /** Error/alert content — the one allowed hue (user override) */
+  danger: string;
+  /** Error/alert message surface */
+  dangerSurface: string;
+  /** Success content (e.g. strong password) — user override */
+  success: string;
+  /** Warning content (e.g. fair password) — user override */
+  warning: string;
 }
 
 export const lightColors: ThemeColors = {
@@ -58,6 +66,10 @@ export const lightColors: ThemeColors = {
   overlayScrim: 'rgba(0, 0, 0, 0.4)',
   stateOfflineBg: palette.gray100,
   glassTint: 'rgba(0, 0, 0, 0.06)',
+  danger: '#C62828',
+  dangerSurface: 'rgba(198, 40, 40, 0.08)',
+  success: '#2E7D32',
+  warning: '#E65100',
 };
 
 export const darkColors: ThemeColors = {
@@ -72,6 +84,10 @@ export const darkColors: ThemeColors = {
   overlayScrim: 'rgba(0, 0, 0, 0.6)',
   stateOfflineBg: palette.gray800,
   glassTint: 'rgba(255, 255, 255, 0.08)',
+  danger: '#FF5A5A',
+  dangerSurface: 'rgba(255, 90, 90, 0.12)',
+  success: '#66BB6A',
+  warning: '#FFA726',
 };
 
 export type ThemeName = 'light' | 'dark';

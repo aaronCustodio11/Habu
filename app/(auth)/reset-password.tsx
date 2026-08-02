@@ -1,14 +1,18 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
+import { Text } from 'react-native';
 import { router } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
 import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/TextField';
+import { AuthScaffold } from '@/components/auth/AuthScaffold';
+import { AuthBackHeader } from '@/components/auth/AuthBackHeader';
+import { AuthFooter } from '@/components/auth/AuthFooter';
+import { PasswordStrength } from '@/components/auth/PasswordStrength';
 import { updatePassword } from '@/lib/supabase/auth';
-import { spacing, typography } from '@/constants/Colors';
+import { validatePassword } from '@/lib/security';
+import { typography } from '@/constants/Colors';
 
-/** Sets a new password after the reset-link flow (module 3). */
+/** Sets a new password after the reset-link flow (design direction 1 · "Quiet Field"). */
 export default function ResetPasswordScreen() {
   const { colors } = useTheme();
   const [password, setPassword] = useState('');
@@ -18,8 +22,9 @@ export default function ResetPasswordScreen() {
   const [submitting, setSubmitting] = useState(false);
 
   const submit = async () => {
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters.');
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      setError(passwordError);
       return;
     }
     if (password !== confirm) {
@@ -39,49 +44,48 @@ export default function ResetPasswordScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: colors.bgBase }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView
-        contentContainerStyle={{
-          flexGrow: 1,
-          justifyContent: 'center',
-          padding: spacing.lg,
-          gap: spacing.md,
-        }}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-          <MaterialCommunityIcons
-            name="arrow-left"
-            size={24}
-            color={colors.textPrimary}
-            onPress={() => router.back()}
-            accessibilityLabel="Back"
-            accessibilityRole="button"
-          />
-          <Text style={{ color: colors.textPrimary, fontSize: typography.heading, fontWeight: '700' }}>
-            Set a new password
-          </Text>
-        </View>
+    <AuthScaffold>
+      <AuthBackHeader title="Set a new password" />
 
-        {done ? (
-          <>
-            <Text style={{ color: colors.textPrimary, fontSize: 17 }}>Password updated.</Text>
-            <Button label="Continue" onPress={() => router.replace('/login')} />
-          </>
-        ) : (
-          <>
-            <TextField label="New password" value={password} onChangeText={setPassword} secureTextEntry placeholder="••••••••" />
-            <TextField label="Confirm password" value={confirm} onChangeText={setConfirm} secureTextEntry placeholder="••••••••" />
-            {error ? (
-              <Text style={{ color: colors.textSecondary, fontSize: 14 }}>{error}</Text>
-            ) : null}
-            <Button label="Save password" onPress={submit} disabled={submitting} />
-          </>
-        )}
-      </ScrollView>
-    </KeyboardAvoidingView>
+      {done ? (
+        <>
+          <Text style={{ color: colors.textPrimary, fontSize: 17 }}>Password updated.</Text>
+          <Button label="Continue" onPress={() => router.replace('/login')} />
+        </>
+      ) : (
+        <>
+          <Text style={{ color: colors.textPrimary, fontSize: typography.title, fontWeight: '800', textAlign: 'center' }}>
+            Choose a strong password
+          </Text>
+          <Text style={{ color: colors.textSecondary, fontSize: typography.subtext, textAlign: 'center' }}>
+            At least 8 characters. Try a phrase only you would know.
+          </Text>
+          <TextField
+            label="New password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            placeholder="8+ characters"
+            maxLength={72}
+          />
+          <PasswordStrength password={password} />
+          <TextField
+            label="Confirm password"
+            value={confirm}
+            onChangeText={setConfirm}
+            secureTextEntry
+            placeholder="Repeat password"
+            maxLength={72}
+          />
+          {error ? <Text style={{ color: colors.textSecondary, fontSize: 14 }}>{error}</Text> : null}
+          <Button label="Save password" onPress={submit} disabled={submitting} />
+          <AuthFooter
+            question="Changed your mind?"
+            link="Back to sign in"
+            onPress={() => router.replace('/login')}
+          />
+        </>
+      )}
+    </AuthScaffold>
   );
 }

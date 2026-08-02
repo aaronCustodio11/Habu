@@ -18,7 +18,7 @@ interface AuthState {
   email: string | null;
   initialize: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<boolean>;
+  signUp: (email: string, password: string, username?: string) => Promise<boolean>;
   signOut: () => Promise<void>;
 }
 
@@ -69,8 +69,8 @@ export const authStore = create<AuthState>()(
         if (nextId) syncNow(nextId);
       },
 
-      signUp: async (email, password) => {
-        const data = await supabaseSignUp(email, password);
+      signUp: async (email, password, username) => {
+        const data = await supabaseSignUp(email, password, username);
         return Boolean(data.session);
       },
 
