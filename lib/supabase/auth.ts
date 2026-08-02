@@ -46,13 +46,30 @@ export async function signInWithPassword(email: string, password: string) {
   return data;
 }
 
-export async function signUp(email: string, password: string) {
+export async function signUp(email: string, password: string, username?: string) {
   if (!isSupabaseConfigured || !supabase) {
     throw new Error('Supabase is not configured.');
   }
-  const { data, error } = await supabase.auth.signUp({ email, password });
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: username ? { data: { username } } : undefined,
+  });
   if (error) throw error;
   return data;
+}
+
+/**
+ * Whether an email already has an account. Supabase deliberately hides this
+ * behind a boolean RPC (it has no built-in lookup) so signup can warn early.
+ */
+export async function isEmailRegistered(email: string): Promise<boolean | null> {
+  if (!isSupabaseConfigured || !supabase) return null;
+  const { data, error } = await supabase.rpc('is_email_registered', {
+    target: email.trim(),
+  });
+  if (error) return null;
+  return Boolean(data);
 }
 
 export async function signOut() {

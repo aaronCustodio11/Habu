@@ -1,14 +1,17 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
+import { Text } from 'react-native';
 import { router } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
 import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/TextField';
+import { AuthScaffold } from '@/components/auth/AuthScaffold';
+import { AuthBackHeader } from '@/components/auth/AuthBackHeader';
+import { AuthFooter } from '@/components/auth/AuthFooter';
 import { sendPasswordResetEmail } from '@/lib/supabase/auth';
-import { spacing, typography } from '@/constants/Colors';
+import { validateEmail } from '@/lib/security';
+import { typography } from '@/constants/Colors';
 
-/** Requests a password reset email (module 3). */
+/** Requests a password reset email (design direction 1 · "Quiet Field"). */
 export default function ForgotPasswordScreen() {
   const { colors } = useTheme();
   const [email, setEmail] = useState('');
@@ -17,8 +20,9 @@ export default function ForgotPasswordScreen() {
   const [submitting, setSubmitting] = useState(false);
 
   const submit = async () => {
-    if (!email) {
-      setError('Enter your email address.');
+    const emailError = validateEmail(email);
+    if (emailError) {
+      setError(emailError);
       return;
     }
     setError(null);
@@ -34,53 +38,43 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: colors.bgBase }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView
-        contentContainerStyle={{
-          flexGrow: 1,
-          justifyContent: 'center',
-          padding: spacing.lg,
-          gap: spacing.md,
-        }}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-          <MaterialCommunityIcons
-            name="arrow-left"
-            size={24}
-            color={colors.textPrimary}
-            onPress={() => router.back()}
-            accessibilityLabel="Back"
-            accessibilityRole="button"
-          />
-          <Text style={{ color: colors.textPrimary, fontSize: typography.heading, fontWeight: '700' }}>
-            Forgot password
-          </Text>
-        </View>
+    <AuthScaffold>
+      <AuthBackHeader title="Forgot password" />
 
-        {sent ? (
-          <>
-            <Text style={{ color: colors.textPrimary, fontSize: 17 }}>
-              Check your inbox for a reset link.
-            </Text>
-            <Button label="Back to sign in" onPress={() => router.replace('/login')} />
-          </>
-        ) : (
-          <>
-            <Text style={{ color: colors.textSecondary, fontSize: 17 }}>
-              Enter your email and we will send you a link to reset your password.
-            </Text>
-            <TextField label="Email" value={email} onChangeText={setEmail} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" placeholder="you@example.com" />
-            {error ? (
-              <Text style={{ color: colors.textSecondary, fontSize: 14 }}>{error}</Text>
-            ) : null}
-            <Button label="Send reset link" onPress={submit} disabled={submitting} />
-          </>
-        )}
-      </ScrollView>
-    </KeyboardAvoidingView>
+      {sent ? (
+        <>
+          <Text style={{ color: colors.textPrimary, fontSize: 17 }}>
+            Check your inbox for a reset link.
+          </Text>
+          <Button label="Back to sign in" onPress={() => router.replace('/login')} />
+        </>
+      ) : (
+        <>
+          <Text style={{ color: colors.textPrimary, fontSize: typography.title, fontWeight: '800', textAlign: 'center' }}>
+            Reset your password
+          </Text>
+          <Text style={{ color: colors.textSecondary, fontSize: typography.subtext, textAlign: 'center' }}>
+            Enter your email and we will send you a link to reset your password.
+          </Text>
+          <TextField
+            label="Email"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            placeholder="you@example.com"
+            maxLength={254}
+          />
+          {error ? <Text style={{ color: colors.textSecondary, fontSize: 14 }}>{error}</Text> : null}
+          <Button label="Send reset link" onPress={submit} disabled={submitting} />
+          <AuthFooter
+            question="Remembered it?"
+            link="Back to sign in"
+            onPress={() => router.replace('/login')}
+          />
+        </>
+      )}
+    </AuthScaffold>
   );
 }

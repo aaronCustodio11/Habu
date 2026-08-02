@@ -1,98 +1,156 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
-import { Link } from 'expo-router';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import { router } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
+import { useAuthThrottle } from '@/hooks/useAuthThrottle';
 import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/TextField';
-import { spacing, typography } from '@/constants/Colors';
+import { AuthScaffold } from '@/components/auth/AuthScaffold';
+import { AuthDivider } from '@/components/auth/AuthDivider';
+import { AuthFooter } from '@/components/auth/AuthFooter';
+import { HabuWordmark } from '@/components/auth/HabuWordmark';
+import { SocialAuthButton } from '@/components/auth/SocialAuthButton';
+import { radius, spacing, typography } from '@/constants/Colors';
+import { validateEmail } from '@/lib/security';
 
-/** Simple login / sign-up (design doc §10 - solid bg-base, standard inputs). */
+/**
+ * Sign in (design direction 1 · "Quiet Field" — email-first, centered, calm).
+ * Apple / Google buttons are UI-only for now; backend wiring comes later.
+ */
 export default function LoginScreen() {
   const { colors } = useTheme();
-  const { signIn, signUp } = useAuth();
-  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const { signIn } = useAuth();
+  const throttle = useAuthThrottle();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const showError = (message: string) => {
+    setError(message);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+  };
+
   const submit = async () => {
     if (!email || !password) {
-      setError('Enter your email and password.');
+      showError('Enter your email and password.');
+      return;
+    }
+    const emailError = validateEmail(email);
+    if (emailError) {
+      showError(emailError);
       return;
     }
     setError(null);
     setSubmitting(true);
     try {
-      if (mode === 'login') {
-        await signIn(email.trim(), password);
-      } else {
-        const hasSession = await signUp(email.trim(), password);
-        if (!hasSession) {
-          setError('Account created — check your email to confirm, then sign in.');
-        }
-      }
+      await signIn(email.trim(), password);
+      throttle.registerSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong.');
+      throttle.handleError(err);
+      showError(
+        throttle.locked
+          ? `Too many attempts. Try again in ${throttle.remainingSeconds}s.`
+          : err instanceof Error
+            ? err.message
+            : 'Something went wrong.',
+      );
     } finally {
       setSubmitting(false);
     }
   };
 
+  const errorBox = error ? (
+    <View style={[styles.errorBox, { backgroundColor: colors.dangerSurface, borderColor: colors.danger }]}>
+      <MaterialCommunityIcons name="alert-circle-outline" size={16} color={colors.danger} />
+      <Text style={[styles.errorText, { color: colors.danger }]}>{error}</Text>
+    </View>
+  ) : null;
+
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: colors.bgBase }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView
-        contentContainerStyle={{
-          flexGrow: 1,
-          justifyContent: 'center',
-          padding: spacing.lg,
-          gap: spacing.md,
-        }}
-        keyboardShouldPersistTaps="handled"
+    <AuthScaffold>
+      <HabuWordmark size={26} />
+      <Text style={{ color: colors.textPrimary, fontSize: typography.title, fontWeight: '800', textAlign: 'center' }}>
+        Welcome
+      </Text>
+      <Text style={{ color: colors.textSecondary, fontSize: typography.subtext, textAlign: 'center' }}>
+        Pick up where your streak left off.
+      </Text>
+
+      <TextField
+        label="Email"
+        value={email}
+        onChangeText={setEmail}
+        autoCapitalize="none"
+        autoCorrect={false}
+        keyboardType="email-address"
+        placeholder="Enter your email"
+        maxLength={254}
+      />
+      <TextField
+        label="Password"
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
+        placeholder="Enter your password"
+      />
+
+      <Pressable
+        accessibilityRole="link"
+        accessibilityLabel="Forgot password"
+        onPress={() => router.push('/forgot-password')}
+        style={({ pressed }) => [styles.forgot, pressed && styles.pressed]}
       >
-        <Text style={{ color: colors.textPrimary, fontSize: typography.display, fontWeight: '800' }}>
-          {mode === 'login' ? 'Welcome back' : 'Create your account'}
+        <Text style={{ color: colors.textSecondary, fontSize: typography.subtext, textDecorationLine: 'underline' }}>
+          Forgot password?
         </Text>
-        <Text style={{ color: colors.textSecondary, fontSize: 17 }}>
-          {mode === 'login'
-            ? 'Sign in to keep your habits in sync.'
-            : 'One account keeps your data safe across devices.'}
-        </Text>
+      </Pressable>
 
-        <TextField label="Email" value={email} onChangeText={setEmail} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" placeholder="you@example.com" />
-        <TextField label="Password" value={password} onChangeText={setPassword} secureTextEntry placeholder="••••••••" />
+      {errorBox}
 
-        {error ? (
-          <Text style={{ color: colors.textSecondary, fontSize: 14 }}>{error}</Text>
-        ) : null}
+      <Button
+        label={
+          throttle.locked ? `Try again in ${throttle.remainingSeconds}s` : 'Sign In'
+        }
+        onPress={submit}
+        disabled={submitting || throttle.locked}
+      />
 
-        <Button label={mode === 'login' ? 'Sign In' : 'Create Account'} onPress={submit} disabled={submitting} />
+      <AuthDivider label="or continue with" />
 
-        <View style={{ flexDirection: 'row', gap: spacing.xs, justifyContent: 'center' }}>
-          <Text style={{ color: colors.textSecondary, fontSize: 15 }}>
-            {mode === 'login' ? "New to Habu?" : 'Already have an account?'}
-          </Text>
-          <Text
-            style={{ color: colors.textPrimary, fontSize: 15, fontWeight: '600' }}
-            onPress={() => {
-              setMode(mode === 'login' ? 'signup' : 'login');
-              setError(null);
-            }}
-          >
-            {mode === 'login' ? 'Sign up' : 'Sign in'}
-          </Text>
-        </View>
+      <SocialAuthButton provider="apple" />
+      <SocialAuthButton provider="google" />
 
-        {mode === 'login' ? (
-          <Link href="/forgot-password" style={{ color: colors.textSecondary, fontSize: 15, textAlign: 'center', textDecorationLine: 'underline' }}>
-            Forgot password?
-          </Link>
-        ) : null}
-      </ScrollView>
-    </KeyboardAvoidingView>
+      <AuthFooter
+        question="New to Habu?"
+        link="Create account"
+        onPress={() => router.push('/signup')}
+      />
+    </AuthScaffold>
   );
 }
+
+const styles = StyleSheet.create({
+  forgot: {
+    alignSelf: 'flex-end',
+  },
+  pressed: {
+    opacity: 0.7,
+  },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radius.md,
+    borderWidth: 1,
+  },
+  errorText: {
+    fontSize: 14,
+    flex: 1,
+  },
+});
