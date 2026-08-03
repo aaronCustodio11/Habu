@@ -8,6 +8,7 @@ import { useCompletions } from '@/hooks/useCompletions';
 import { useTheme } from '@/hooks/useTheme';
 import { HeatmapGrid } from '@/components/heatmap/HeatmapGrid';
 import { WidgetRenderer } from '@/components/stats/WidgetRenderer';
+import { BackButton } from '@/components/ui/BackButton';
 import { widgetConfigsRepo } from '@/lib/db/repositories/widgetConfigsRepo';
 import { spacing, typography } from '@/constants/Colors';
 import type { WidgetConfig } from '@/types/widgetConfig';
@@ -42,14 +43,7 @@ export default function BoardDetailScreen() {
       contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-        <MaterialCommunityIcons
-          name="arrow-left"
-          size={24}
-          color={colors.textPrimary}
-          onPress={() => router.back()}
-          accessibilityLabel="Back"
-          accessibilityRole="button"
-        />
+        <BackButton />
         <Text style={{ color: colors.textPrimary, fontSize: typography.heading, fontWeight: '700', flex: 1 }} numberOfLines={1}>
           {board.name}
         </Text>

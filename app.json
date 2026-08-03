@@ -38,12 +38,19 @@
       ],
       "expo-sqlite",
       [
+        "expo-secure-store",
+        {
+          "configureAndroidBackup": true
+        }
+      ],
+      [
         "expo-notifications",
         {
           "color": "#0A0A0A",
           "defaultChannel": "habu-reminders"
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true

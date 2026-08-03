@@ -50,6 +50,8 @@ export interface ThemeColors {
   dangerSurface: string;
   /** Success content (e.g. strong password) — user override */
   success: string;
+  /** Success message surface */
+  successSurface: string;
   /** Warning content (e.g. fair password) — user override */
   warning: string;
 }
@@ -69,6 +71,7 @@ export const lightColors: ThemeColors = {
   danger: '#C62828',
   dangerSurface: 'rgba(198, 40, 40, 0.08)',
   success: '#2E7D32',
+  successSurface: 'rgba(46, 125, 50, 0.08)',
   warning: '#E65100',
 };
 
@@ -87,6 +90,7 @@ export const darkColors: ThemeColors = {
   danger: '#FF5A5A',
   dangerSurface: 'rgba(255, 90, 90, 0.12)',
   success: '#66BB6A',
+  successSurface: 'rgba(102, 187, 106, 0.12)',
   warning: '#FFA726',
 };
 

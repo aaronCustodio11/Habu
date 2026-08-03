@@ -1,10 +1,10 @@
 import { ScrollView, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { BoardForm } from '@/components/board/BoardForm';
 import { useBoards } from '@/hooks/useBoards';
+import { BackButton } from '@/components/ui/BackButton';
 import { spacing, typography } from '@/constants/Colors';
 
 /** "New board" form (module 5). */
@@ -20,14 +20,7 @@ export default function CreateBoardScreen() {
       keyboardShouldPersistTaps="handled"
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-        <MaterialCommunityIcons
-          name="arrow-left"
-          size={24}
-          color={colors.textPrimary}
-          onPress={() => router.back()}
-          accessibilityLabel="Back"
-          accessibilityRole="button"
-        />
+        <BackButton />
         <Text style={{ color: colors.textPrimary, fontSize: typography.heading, fontWeight: '700' }}>
           New Board
         </Text>

@@ -39,8 +39,7 @@ Habu/
 │   │
 │   ├── (auth)/                        # Everything a LOGGED-OUT user can reach
 │   │   ├── login.tsx
-│   │   ├── forgot-password.tsx
-│   │   └── reset-password.tsx
+│   │   └── forgot-password.tsx
 │   │
 │   ├── (app)/                         # Everything a LOGGED-IN user can reach
 │   │   ├── _layout.tsx                # The bottom tab bar (Home / Boards / Settings)
@@ -159,6 +158,14 @@ Habu/
     └── .env                           # Supabase keys — gitignored, never committed
 ```
 
+> **Note:** `web/auth-landing/` is a small hosted page (deployed to Cloudflare Pages) that
+> finishes the email-confirm and password-reset flows in the browser — the Supabase email
+> links point at its URL (Site URL), it exchanges the token, then tells the user to return
+> to the app and sign in. The app itself handles no deep links. `index.html` holds key
+> **placeholders** (`__SUPABASE_URL__`, `__SUPABASE_ANON_KEY__`); run `node
+> web/auth-landing/build.mjs` to inject the values from `.env` into `dist/` (gitignored)
+> before deploying — the repo never contains real keys.
+
 ---
 
 ## 3. Module → File Lookup Table
@@ -169,7 +176,7 @@ The dev plan's 14 design modules, and exactly where each one lives in code. Use 
 |---|---|---|
 | 1 | Onboarding | `app/onboarding.tsx` |
 | 2 | Simple Login | `app/(auth)/login.tsx` |
-| 3 | Forgot Password | `app/(auth)/forgot-password.tsx`, `reset-password.tsx` |
+| 3 | Forgot Password | `app/(auth)/forgot-password.tsx` + hosted landing page `web/auth-landing/index.html` |
 | 4 | Home Screen | `app/(app)/home/index.tsx` |
 | 5 | Create/Edit Board | `app/(app)/boards/create.tsx`, `[boardId]/edit.tsx` |
 | 6 | Check-in / Add Note | `app/modal/check-in.tsx` |

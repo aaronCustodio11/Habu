@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
 import { useBoards } from '@/hooks/useBoards';
 import { useTheme } from '@/hooks/useTheme';
 import { BoardForm } from '@/components/board/BoardForm';
+import { BackButton } from '@/components/ui/BackButton';
 import { Button } from '@/components/ui/Button';
 import { spacing, typography } from '@/constants/Colors';
 
@@ -54,14 +54,7 @@ export default function EditBoardScreen() {
       keyboardShouldPersistTaps="handled"
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-        <MaterialCommunityIcons
-          name="arrow-left"
-          size={24}
-          color={colors.textPrimary}
-          onPress={() => router.back()}
-          accessibilityLabel="Back"
-          accessibilityRole="button"
-        />
+        <BackButton />
         <Text style={{ color: colors.textPrimary, fontSize: typography.heading, fontWeight: '700' }}>
           Edit Board
         </Text>
