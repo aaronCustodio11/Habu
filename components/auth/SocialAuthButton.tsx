@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Alert, Pressable, StyleSheet, Text } from 'react-native';
+import { Alert, Platform, Pressable, StyleSheet, Text } from 'react-native';
 import { useTheme } from '@/hooks/useTheme';
 import { radius } from '@/constants/Colors';
 
@@ -16,6 +16,9 @@ interface SocialAuthButtonProps {
  */
 export function SocialAuthButton({ provider }: SocialAuthButtonProps) {
   const { colors } = useTheme();
+
+  if (provider === 'apple' && Platform.OS !== 'ios') return null;
+
   const label = provider === 'apple' ? 'Continue with Apple' : 'Continue with Google';
 
   const onPress = () => {

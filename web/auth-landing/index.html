@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Habu</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg-base: #FFFFFF;
+    --bg-surface: #F5F5F5;
+    --border-subtle: #E0E0E0;
+    --text-primary: #0A0A0A;
+    --text-secondary: #6B6B6B;
+    --text-tertiary: #A3A3A3;
+    --radius-md: 16px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg-base: #000000;
+      --bg-surface: #161616;
+      --border-subtle: #2A2A2A;
+      --text-primary: #FAFAFA;
+      --text-secondary: #9A9A9A;
+      --text-tertiary: #6B6B6B;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg-base);
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", Roboto, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 24px;
+  }
+
+  .shell { width: 100%; max-width: 380px; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
+
+  /* The hero: a scaled-up 2x2 habit heatmap, one cell per state stage. */
+  .hero { margin-bottom: 16px; }
+  .hero .grid {
+    display: grid;
+    grid-template-columns: repeat(2, 52px);
+    grid-auto-rows: 52px;
+    gap: 8px;
+  }
+  .hero .cell {
+    border-radius: 12px;
+    background: var(--text-primary);
+    transition: opacity 0.5s ease, background 0.5s ease;
+  }
+  .hero .cell.c1 { opacity: 1; }
+  .hero .cell.c2 { opacity: 0.55; }
+  .hero .cell.c3 { opacity: 0.28; }
+  .hero .cell.c4 { background: transparent; border: 2.5px solid var(--text-primary); opacity: 0.85; }
+
+  /* Success: all cells solid (a completed "all checked in" heatmap). */
+  .is-done .hero .cell { background: var(--text-primary); opacity: 1; }
+  .is-done .hero .cell.c4 { background: var(--text-primary); border: none; opacity: 1; }
+
+  h1 { font-size: 34px; font-weight: 800; letter-spacing: -0.02em; margin: 0; }
+  p { color: var(--text-secondary); font-size: 15px; line-height: 1.5; margin: 0; }
+  .error-copy { display: flex; align-items: flex-start; justify-content: center; gap: 8px; }
+  .error-copy svg { width: 16px; height: 16px; flex: none; margin-top: 2px; }
+
+  form { width: 100%; display: flex; flex-direction: column; gap: 16px; text-align: left; margin-top: 12px; }
+  label { font-size: 13px; color: var(--text-secondary); font-weight: 500; }
+  input {
+    width: 100%;
+    min-height: 48px;
+    padding: 0 16px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    font-size: 17px;
+    font-family: inherit;
+    outline: none;
+  }
+  input:focus { border: 1.5px solid var(--text-primary); padding-left: 15.5px; }
+
+  button.primary {
+    width: 100%;
+    min-height: 48px;
+    padding: 0 20px;
+    border: none;
+    border-radius: var(--radius-md);
+    background: var(--text-primary);
+    color: var(--bg-base);
+    font-size: 17px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    margin-top: 8px;
+  }
+  button.primary:disabled { opacity: 0.4; cursor: default; }
+  button.primary:not(:disabled):active { opacity: 0.7; }
+
+  .hint { color: var(--text-tertiary); font-size: 12px; margin-top: 8px; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+  <div class="shell" id="shell">
+
+    <div class="hero" aria-hidden="true">
+      <div class="grid">
+        <div class="cell c1"></div><div class="cell c2"></div>
+        <div class="cell c3"></div><div class="cell c4"></div>
+      </div>
+    </div>
+
+    <h1 id="title">Just a moment…</h1>
+    <p id="message">Verifying your email.</p>
+    <p id="error" class="error-copy hidden"></p>
+
+    <form id="reset-form" class="hidden" novalidate>
+      <div>
+        <label for="password">New password</label>
+        <input id="password" type="password" autocomplete="new-password" minlength="6"
+               placeholder="At least 6 characters" />
+      </div>
+      <button type="submit" id="reset-submit" class="primary">Set new password</button>
+    </form>
+
+    <button id="open-app" class="primary hidden">Open Habu app</button>
+    <p id="hint" class="hint hidden">If the app didn't open, switch to Habu and sign in.</p>
+  </div>
+
+  <script>
+    (function () {
+      var SUPABASE_URL = "__SUPABASE_URL__";
+      var SUPABASE_ANON_KEY = "__SUPABASE_ANON_KEY__";
+
+      var shell = document.getElementById("shell");
+      var title = document.getElementById("title");
+      var message = document.getElementById("message");
+      var errorEl = document.getElementById("error");
+      var resetForm = document.getElementById("reset-form");
+      var passwordInput = document.getElementById("password");
+      var resetSubmit = document.getElementById("reset-submit");
+      var openApp = document.getElementById("open-app");
+      var hint = document.getElementById("hint");
+
+      var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+      });
+
+      function setError(msg) {
+        shell.classList.remove("is-done");
+        title.textContent = "Link problem";
+        errorEl.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 9v4" /><circle cx="12" cy="17" r="0.8" fill="currentColor" /></svg><span></span>';
+        errorEl.querySelector("span").textContent = msg;
+        errorEl.classList.remove("hidden");
+        message.textContent = "";
+        resetForm.classList.add("hidden");
+        openApp.classList.remove("hidden");
+        hint.classList.remove("hidden");
+      }
+
+      function done(msg) {
+        shell.classList.add("is-done");
+        title.textContent = "Email confirmed";
+        message.textContent = msg;
+        errorEl.classList.add("hidden");
+        resetForm.classList.add("hidden");
+        openApp.classList.remove("hidden");
+        hint.classList.remove("hidden");
+      }
+
+      function showResetForm() {
+        shell.classList.remove("is-done");
+        title.textContent = "Set a new password";
+        message.textContent = "Your reset link is valid. Choose a new password.";
+        errorEl.classList.add("hidden");
+        resetForm.classList.remove("hidden");
+        openApp.classList.add("hidden");
+        hint.classList.add("hidden");
+      }
+
+      resetForm.addEventListener("submit", async function (e) {
+        e.preventDefault();
+        var pw = passwordInput.value;
+        if (pw.length < 6) { setError("Password must be at least 6 characters."); return; }
+        resetSubmit.disabled = true;
+        try {
+          var { error } = await supabase.auth.updateUser({ password: pw });
+          if (error) throw error;
+          shell.classList.add("is-done");
+          title.textContent = "Password updated";
+          message.textContent = "Your password has been updated. Go back to the Habu app and sign in.";
+          resetForm.classList.add("hidden");
+          openApp.classList.remove("hidden");
+          hint.classList.remove("hidden");
+        } catch (err) {
+          setError(err && err.message ? err.message : "Something went wrong. Try requesting a new link.");
+        } finally {
+          resetSubmit.disabled = false;
+        }
+      });
+
+      openApp.addEventListener("click", function () { window.location.href = "habu://"; });
+
+      async function run() {
+        var url = new URL(window.location.href);
+        var params = url.searchParams;
+        var tokenHash = params.get("token_hash");
+        var type = params.get("type");
+        var code = params.get("code");
+        var fragParams = new URLSearchParams(url.hash.replace(/^#/, ""));
+        var accessToken = fragParams.get("access_token");
+        var refreshToken = fragParams.get("refresh_token");
+
+        try {
+          if (tokenHash && type) {
+            var { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: type });
+            if (error) throw error;
+            if (type === "recovery") { showResetForm(); return; }
+            done("Your email is confirmed. Go back to the Habu app and sign in.");
+            return;
+          }
+          if (code) {
+            var res = await supabase.auth.exchangeCodeForSession(code);
+            if (res.error) throw res.error;
+            done("Your email is confirmed. Go back to the Habu app and sign in.");
+            return;
+          }
+          if (accessToken && refreshToken) {
+            var set = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+            if (set.error) throw set.error;
+            if (fragParams.get("type") === "recovery") { showResetForm(); return; }
+            done("Your email is confirmed. Go back to the Habu app and sign in.");
+            return;
+          }
+          setError("This link is missing confirmation details. Try requesting a new one.");
+        } catch (err) {
+          setError(err && err.message ? err.message : "This link is invalid or has expired. Try requesting a new one.");
+        }
+      }
+
+      run();
+    })();
+  </script>
+</body>
+</html>

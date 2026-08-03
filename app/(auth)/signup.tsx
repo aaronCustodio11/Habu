@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, BackHandler, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Stack, router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthThrottle } from '@/hooks/useAuthThrottle';
+import { BackButton } from '@/components/ui/BackButton';
 import { Button } from '@/components/ui/Button';
 import { HoldButton } from '@/components/ui/HoldButton';
 import { TextField } from '@/components/ui/TextField';
@@ -15,11 +16,12 @@ import { AuthDivider } from '@/components/auth/AuthDivider';
 import { AuthFooter } from '@/components/auth/AuthFooter';
 import { SocialAuthButton } from '@/components/auth/SocialAuthButton';
 import { PasswordStrength } from '@/components/auth/PasswordStrength';
-import { validateEmail, validatePassword, validateUsername } from '@/lib/security';
+import { validateEmail, validatePassword, validateUsername, EMAIL_MAX_LENGTH } from '@/lib/security';
 import { isEmailRegistered } from '@/lib/supabase/auth';
+import { uiStore } from '@/store/uiStore';
 import { radius, spacing, typography } from '@/constants/Colors';
 
-const STEPS = ['Email', 'Password', 'Name'] as const;
+const STEPS = ['Email', 'Password', 'Username'] as const;
 
 /** Fades its children in when mounted; key by step to cross-fade the wizard. */
 function FadeIn({ children }: { children: ReactNode }) {
@@ -55,6 +57,15 @@ export default function SignupScreen() {
     setStep(next);
   };
 
+  const resetForm = () => {
+    setEmail('');
+    setPassword('');
+    setConfirm('');
+    setUsername('');
+    setError(null);
+    setStep(0);
+  };
+
   const goBack = () => {
     if (step === 1) {
       // Leaving the password stage: don't carry a half-typed password back.
@@ -67,6 +78,17 @@ export default function SignupScreen() {
     }
     goTo(step - 1);
   };
+
+  // Android hardware back must mirror the on-screen back affordance: stepping
+  // back through the wizard instead of popping the whole signup screen.
+  useEffect(() => {
+    if (step === 0) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      goBack();
+      return true;
+    });
+    return () => sub.remove();
+  }, [step]);
 
   const showError = (message: string) => {
     setError(message);
@@ -114,7 +136,12 @@ export default function SignupScreen() {
       const hasSession = await signUp(email.trim(), password, username.trim());
       throttle.registerSuccess();
       if (!hasSession) {
-        showError('Account created — check your email to confirm, then sign in.');
+        // Email confirmation is on: no session yet. Wipe the wizard, carry a
+        // success notice to the login screen, and land the user back there so
+        // they sign in right after confirming their email.
+        resetForm();
+        uiStore.getState().setNotice('Account created — check your email to confirm, then sign in.');
+        router.back();
         return false;
       }
       return true;
@@ -141,19 +168,10 @@ export default function SignupScreen() {
         : { title: 'How should we call you?', subtext: 'This is the name the app will call you.' };
 
   const header = (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={step === 0 ? 'Back to sign in' : 'Go back'}
-      onPress={goBack}
-      hitSlop={8}
-      style={({ pressed }) => [
-        styles.back,
-        { backgroundColor: colors.bgSurface },
-        pressed && styles.pressed,
-      ]}
-    >
-      <MaterialCommunityIcons name="chevron-left" size={28} color={colors.textPrimary} />
-    </Pressable>
+    <View style={styles.headerRow}>
+      <BackButton label={step === 0 ? 'Back to sign in' : 'Go back'} onPress={goBack} />
+      <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>{STEPS[step]}</Text>
+    </View>
   );
 
   const errorBox = error ? (
@@ -183,6 +201,7 @@ export default function SignupScreen() {
               autoCorrect={false}
               keyboardType="email-address"
               placeholder="Enter your email"
+              maxLength={EMAIL_MAX_LENGTH}
             />
             {errorBox}
             <Button label="Continue" onPress={submitEmail} disabled={checkingEmail} />
@@ -250,13 +269,14 @@ export default function SignupScreen() {
 }
 
 const styles = StyleSheet.create({
-  back: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  headerRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'flex-start',
+    gap: spacing.sm,
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '700',
   },
   title: {
     fontSize: typography.title,
@@ -279,8 +299,5 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 14,
     flex: 1,
-  },
-  pressed: {
-    opacity: 0.7,
   },
 });

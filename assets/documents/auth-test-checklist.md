@@ -1,7 +1,9 @@
 # Habu — Auth & Rate-Limiting Test Checklist
 
 Run these after the auth/rate-limit work. Covers client validation, client-side throttle,
-Supabase rate limits, and RLS.
+Supabase rate limits, RLS, cross-platform behavior, and token storage.
+
+**Status:** Section A ✅ (verified) · Sections B–F pending.
 
 ## Pre-flight (5 min)
 
@@ -84,9 +86,30 @@ schema public to authenticated;` to `supabase/schema.sql` and re-run in the SQL 
 - [ ] Optionally set stricter signup limit under Auth → Rate Limits (OTP/signup bucket)
 - [ ] If email confirmation was disabled for testing, re-enable it
 
+## Section F — Cross-platform behavior & hardening
+
+| # | Test | Steps | Expected |
+|---|------|-------|----------|
+| F1 | Signup: Android hardware back | On password step, press Android system back | Steps back to email step (password + confirm cleared), screen stays |
+| F2 | Signup: Android hardware back (email step) | On email step, press system back | Exits signup (default back to login) |
+| F3 | Apple button gated per platform | Android: open login + signup. iOS: same | Android: no "Continue with Apple" button; iOS: shown (UI-only placeholder) |
+| F4 | Login password field cap | Paste 73+ chars into Password | Input capped at 72 (`PASSWORD_MAX_LENGTH`) |
+| F5 | Signup email field cap | Paste 255+ chars into Email | Input capped at 254 (`EMAIL_MAX_LENGTH`) |
+| F6 | Secure session persistence | Sign in → force-close app → relaunch | Stays signed in — session restored from OS Keychain/Keystore |
+| F7 | Sign-out clears secure storage | Sign out → relaunch | Returns to login; session + persisted email gone from secure store |
+| F8 | Enumeration early-warning | Sign up a new email once, then run signup again with the same email → Continue | Step 1 stays: "An account already exists for this email. Sign in instead." (intentional UX tradeoff) |
+
+Notes:
+- Token storage now uses `expo-secure-store` (Keychain on iOS / Keystore-encrypted
+  SharedPreferences on Android) with a plaintext fallback for sessions larger than the
+  platform keychain accepts (>~2KB). Existing plaintext sessions migrate on their next
+  write; reads fall back in between, so nothing breaks.
+- F3–F5 are quick visual/paste checks; F6–F8 need a confirmed account (or email-confirm off).
+
 ## Reference
 
 - Client validation: `lib/security.ts`
+- Token storage: `lib/secureStorage.ts`, `lib/supabase/client.ts`, `store/authStore.ts` (`expo-secure-store`)
 - Client throttle: `hooks/useAuthThrottle.ts`, `lib/rateLimit.ts`
 - Throttled screens: `app/(auth)/login.tsx`, `app/(auth)/signup.tsx`
 - Schema/RLS: `supabase/schema.sql`

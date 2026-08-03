@@ -1,7 +1,10 @@
 import { useState } from 'react';
-import { Text } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
+import { useAuthThrottle } from '@/hooks/useAuthThrottle';
 import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/TextField';
 import { AuthScaffold } from '@/components/auth/AuthScaffold';
@@ -9,50 +12,75 @@ import { AuthBackHeader } from '@/components/auth/AuthBackHeader';
 import { AuthFooter } from '@/components/auth/AuthFooter';
 import { sendPasswordResetEmail } from '@/lib/supabase/auth';
 import { validateEmail } from '@/lib/security';
-import { typography } from '@/constants/Colors';
+import { radius, spacing, typography } from '@/constants/Colors';
 
 /** Requests a password reset email (design direction 1 · "Quiet Field"). */
 export default function ForgotPasswordScreen() {
   const { colors } = useTheme();
+  const throttle = useAuthThrottle();
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  const showError = (message: string) => {
+    setError(message);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+  };
+
   const submit = async () => {
     const emailError = validateEmail(email);
-    if (emailError) {
-      setError(emailError);
-      return;
-    }
+    if (emailError) return showError(emailError);
     setError(null);
     setSubmitting(true);
     try {
       await sendPasswordResetEmail(email.trim());
+      throttle.registerSuccess();
       setSent(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong.');
+      throttle.handleError(err);
+      showError(
+        throttle.locked
+          ? `Too many attempts. Try again in ${throttle.remainingSeconds}s.`
+          : err instanceof Error
+            ? err.message
+            : 'Something went wrong.',
+      );
     } finally {
       setSubmitting(false);
     }
   };
 
-  return (
-    <AuthScaffold>
-      <AuthBackHeader title="Forgot password" />
+  const errorBox = error ? (
+    <View style={[styles.box, { backgroundColor: colors.dangerSurface, borderColor: colors.danger }]}>
+      <MaterialCommunityIcons name="alert-circle-outline" size={16} color={colors.danger} />
+      <Text style={[styles.boxText, { color: colors.danger }]}>{error}</Text>
+    </View>
+  ) : null;
 
+  const successBox = sent ? (
+    <View style={[styles.box, { backgroundColor: colors.successSurface, borderColor: colors.success }]}>
+      <MaterialCommunityIcons name="email-check-outline" size={16} color={colors.success} />
+      <Text style={[styles.boxText, { color: colors.success }]}>
+        We sent a reset link to your {email.trim()}.
+      </Text>
+    </View>
+  ) : null;
+
+  return (
+    <AuthScaffold header={<AuthBackHeader title="Forgot password" />}>
       {sent ? (
         <>
-          <Text style={{ color: colors.textPrimary, fontSize: 17 }}>
-            Check your inbox for a reset link.
+          <Text style={[styles.heading, { color: colors.textPrimary }]}>Check your inbox</Text>
+          <Text style={{ color: colors.textSecondary, fontSize: typography.subtext, textAlign: 'center' }}>
+            Use the link to reset your password, then come back and sign in.
           </Text>
+          {successBox}
           <Button label="Back to sign in" onPress={() => router.replace('/login')} />
         </>
       ) : (
         <>
-          <Text style={{ color: colors.textPrimary, fontSize: typography.title, fontWeight: '800', textAlign: 'center' }}>
-            Reset your password
-          </Text>
+          <Text style={[styles.heading, { color: colors.textPrimary }]}>Reset your password</Text>
           <Text style={{ color: colors.textSecondary, fontSize: typography.subtext, textAlign: 'center' }}>
             Enter your email and we will send you a link to reset your password.
           </Text>
@@ -66,8 +94,14 @@ export default function ForgotPasswordScreen() {
             placeholder="you@example.com"
             maxLength={254}
           />
-          {error ? <Text style={{ color: colors.textSecondary, fontSize: 14 }}>{error}</Text> : null}
-          <Button label="Send reset link" onPress={submit} disabled={submitting} />
+          {errorBox}
+          <Button
+            label={
+              throttle.locked ? `Try again in ${throttle.remainingSeconds}s` : 'Send reset link'
+            }
+            onPress={submit}
+            disabled={submitting || throttle.locked}
+          />
           <AuthFooter
             question="Remembered it?"
             link="Back to sign in"
@@ -77,4 +111,23 @@ export default function ForgotPasswordScreen() {
       )}
     </AuthScaffold>
   );
-}
+}const styles = StyleSheet.create({
+  heading: {
+    fontSize: typography.title,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  box: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radius.md,
+    borderWidth: 1,
+  },
+  boxText: {
+    fontSize: 14,
+    flex: 1,
+  },
+});

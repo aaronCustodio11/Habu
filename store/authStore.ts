@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import { AsyncStorage } from '@/lib/storage';
+import { SecureStorage } from '@/lib/secureStorage';
 import {
   getAuthStatus,
   onAuthChange,
@@ -81,7 +81,7 @@ export const authStore = create<AuthState>()(
     }),
     {
       name: 'habu-auth',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => SecureStorage),
       partialize: (state) => ({ userId: state.userId, email: state.email }),
     },
   ),

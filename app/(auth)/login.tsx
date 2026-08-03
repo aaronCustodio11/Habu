@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
@@ -13,8 +14,9 @@ import { AuthDivider } from '@/components/auth/AuthDivider';
 import { AuthFooter } from '@/components/auth/AuthFooter';
 import { HabuWordmark } from '@/components/auth/HabuWordmark';
 import { SocialAuthButton } from '@/components/auth/SocialAuthButton';
+import { uiStore } from '@/store/uiStore';
 import { radius, spacing, typography } from '@/constants/Colors';
-import { validateEmail } from '@/lib/security';
+import { validateEmail, PASSWORD_MAX_LENGTH } from '@/lib/security';
 
 /**
  * Sign in (design direction 1 · "Quiet Field" — email-first, centered, calm).
@@ -27,7 +29,22 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // One-shot success notice carried over from signup ("check your email…").
+  // Read on focus and cleared immediately so it never reappears.
+  useFocusEffect(
+    useCallback(() => {
+      const message = uiStore.getState().notice;
+      if (message) {
+        uiStore.getState().setNotice(null);
+        setNotice(message);
+      }
+    }, []),
+  );
+
+  const dismissNotice = () => setNotice(null);
 
   const showError = (message: string) => {
     setError(message);
@@ -70,6 +87,18 @@ export default function LoginScreen() {
     </View>
   ) : null;
 
+  const noticeBox = notice ? (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Dismiss notification"
+      onPress={dismissNotice}
+      style={[styles.errorBox, { backgroundColor: colors.successSurface, borderColor: colors.success }]}
+    >
+      <MaterialCommunityIcons name="email-check-outline" size={16} color={colors.success} />
+      <Text style={[styles.errorText, { color: colors.success }]}>{notice}</Text>
+    </Pressable>
+  ) : null;
+
   return (
     <AuthScaffold>
       <HabuWordmark size={26} />
@@ -96,6 +125,7 @@ export default function LoginScreen() {
         onChangeText={setPassword}
         secureTextEntry
         placeholder="Enter your password"
+        maxLength={PASSWORD_MAX_LENGTH}
       />
 
       <Pressable
@@ -110,6 +140,7 @@ export default function LoginScreen() {
       </Pressable>
 
       {errorBox}
+      {noticeBox}
 
       <Button
         label={
