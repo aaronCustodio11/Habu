@@ -2,9 +2,11 @@ import { useMemo, useState } from 'react';
 import { FlatList, Pressable, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/hooks/useAuth';
 import { useBoards } from '@/hooks/useBoards';
 import { useTheme } from '@/hooks/useTheme';
+import { useContentWidth } from '@/hooks/useContentWidth';
 import { BoardCard } from '@/components/board/BoardCard';
 import { EmptyState } from '@/components/EmptyState';
 import { Button } from '@/components/ui/Button';
@@ -13,6 +15,8 @@ import { radius, spacing, typography } from '@/constants/Colors';
 /** Full board list with Active/Archived tabs (module 9). */
 export default function BoardsListScreen() {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const { contentStyle } = useContentWidth();
   const { userId } = useAuth();
   const { boards, loading } = useBoards(userId);
   const [tab, setTab] = useState<'active' | 'archived'>('active');
@@ -25,11 +29,15 @@ export default function BoardsListScreen() {
   return (
     <FlatList
       style={{ backgroundColor: colors.bgBase, flex: 1 }}
-      contentContainerStyle={{ padding: spacing.lg, gap: spacing.md }}
+      contentContainerStyle={{
+        paddingTop: spacing.lg + insets.top,
+        paddingBottom: spacing.lg + insets.bottom,
+        gap: spacing.md,
+      }}
       data={filtered}
       keyExtractor={(board) => board.id}
       ListHeaderComponent={
-        <View style={{ gap: spacing.md }}>
+        <View style={[contentStyle, { gap: spacing.md, paddingHorizontal: spacing.lg }]}>
           <Text style={{ color: colors.textPrimary, fontSize: typography.title, fontWeight: '800' }}>
             Boards
           </Text>
@@ -50,6 +58,8 @@ export default function BoardsListScreen() {
                 onPress={() => setTab(key)}
                 style={{
                   flex: 1,
+                  minHeight: 44,
+                  justifyContent: 'center',
                   paddingVertical: spacing.sm,
                   borderRadius: radius.sm,
                   alignItems: 'center',
@@ -72,37 +82,45 @@ export default function BoardsListScreen() {
       }
       ListEmptyComponent={
         loading ? null : tab === 'active' ? (
-          <EmptyState
-            icon="fire"
-            headline={boards.length > 0 ? 'No active boards' : 'Nothing here yet'}
-            body={
-              boards.length > 0
-                ? 'Everything is archived.'
-                : 'Create your first board to start tracking a habit.'
-            }
-            actionLabel="New Board"
-            onAction={() => router.push('/boards/create')}
-          />
+          <View style={[contentStyle, { paddingHorizontal: spacing.lg }]}>
+            <EmptyState
+              icon="fire"
+              headline={boards.length > 0 ? 'No active boards' : 'Nothing here yet'}
+              body={
+                boards.length > 0
+                  ? 'Everything is archived.'
+                  : 'Create your first board to start tracking a habit.'
+              }
+              actionLabel="New Board"
+              onAction={() => router.push('/boards/create')}
+            />
+          </View>
         ) : (
-          <EmptyState icon="archive-outline" headline="No archived boards" body="Archived boards will appear here." />
+          <View style={[contentStyle, { paddingHorizontal: spacing.lg }]}>
+            <EmptyState icon="archive-outline" headline="No archived boards" body="Archived boards will appear here." />
+          </View>
         )
       }
       renderItem={({ item }) => (
-        <BoardCard
-          board={item}
-          style={item.archived ? { opacity: 0.6 } : undefined}
-          onPress={() => router.push({ pathname: '/boards/[boardId]', params: { boardId: item.id } })}
-          onLongPress={() => router.push({ pathname: '/boards/[boardId]/edit', params: { boardId: item.id } })}
-        />
+        <View style={[contentStyle, { paddingHorizontal: spacing.lg }]}>
+          <BoardCard
+            board={item}
+            style={item.archived ? { opacity: 0.6 } : undefined}
+            onPress={() => router.push({ pathname: '/boards/[boardId]', params: { boardId: item.id } })}
+            onLongPress={() => router.push({ pathname: '/boards/[boardId]/edit', params: { boardId: item.id } })}
+          />
+        </View>
       )}
       ListFooterComponent={
         tab === 'active' ? (
-          <Button
-            label="New Board"
-            variant="secondary"
-            onPress={() => router.push('/boards/create')}
-            style={{ marginTop: spacing.sm }}
-          />
+          <View style={[contentStyle, { paddingHorizontal: spacing.lg }]}>
+            <Button
+              label="New Board"
+              variant="secondary"
+              onPress={() => router.push('/boards/create')}
+              style={{ marginTop: spacing.sm }}
+            />
+          </View>
         ) : undefined
       }
     />

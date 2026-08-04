@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/hooks/useAuth';
 import { useBoards } from '@/hooks/useBoards';
 import { useTheme } from '@/hooks/useTheme';
+import { useContentWidth } from '@/hooks/useContentWidth';
 import { BoardCard } from '@/components/board/BoardCard';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { EmptyState } from '@/components/EmptyState';
@@ -19,6 +21,8 @@ import type { WidgetConfig } from '@/types/widgetConfig';
 /** The daily-use main screen (module 4). */
 export default function HomeScreen() {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const { contentStyle } = useContentWidth();
   const { userId } = useAuth();
   const { boards, loading, reload, toggleToday } = useBoards(userId);
   const [widgetConfigs, setWidgetConfigs] = useState<WidgetConfig[]>([]);
@@ -70,14 +74,17 @@ export default function HomeScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    if (userId) await syncNow(userId);
-    await reload();
-    setRefreshing(false);
+    try {
+      if (userId) await syncNow(userId);
+      await reload();
+    } finally {
+      setRefreshing(false);
+    }
   }, [userId, reload]);
 
-  const renderHeader = useMemo(
-    () => (
-      <View style={{ gap: spacing.md }}>
+  return (
+    <View style={{ backgroundColor: colors.bgBase, flex: 1 }}>
+      <View style={[contentStyle, { paddingHorizontal: spacing.lg, paddingTop: spacing.lg + insets.top }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
           <Text style={{ color: colors.textPrimary, fontSize: typography.title, fontWeight: '800', flex: 1 }}>
             Home
@@ -86,6 +93,7 @@ export default function HomeScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Customize home stats"
+              hitSlop={8}
               onPress={() => router.push('/modal/customize-home-stats')}
               style={{ padding: spacing.xs }}
             >
@@ -93,48 +101,55 @@ export default function HomeScreen() {
             </Pressable>
           ) : null}
         </View>
-
-        <OfflineBanner />
-
-        {activeBoards.length > 0 && referenceBoard ? (
-          <QuickStatsRow configs={widgetConfigs} board={referenceBoard} dates={referenceDates} />
-        ) : null}
-
-        <Text style={{ color: colors.textSecondary, fontSize: 15 }}>
-          {activeBoards.length > 0 ? 'Tap a board to check in today.' : 'Your boards'}
-        </Text>
       </View>
-    ),
-    [colors, widgetConfigs, activeBoards.length, referenceBoard, referenceDates],
-  );
 
-  return (
-    <FlatList
-      style={{ backgroundColor: colors.bgBase, flex: 1 }}
-      contentContainerStyle={{ padding: spacing.lg, gap: spacing.md }}
-      data={activeBoards}
-      keyExtractor={(board) => board.id}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.textSecondary} />}
-      ListHeaderComponent={renderHeader}
-      ListEmptyComponent={
-        loading ? null : (
-          <EmptyState
-            icon="fire"
-            headline="Nothing here yet"
-            body="Create your first habit board and start your heatmap today."
-            actionLabel="New Board"
-            onAction={() => router.push('/boards/create')}
-          />
-        )
-      }
-      renderItem={({ item }) => (
-        <BoardCard
-          board={item}
-          isCheckedInToday={todayDone.has(item.id)}
-          onPress={() => void handleToggle(item.id)}
-          onLongPress={() => router.push({ pathname: '/modal/check-in', params: { boardId: item.id } })}
-        />
-      )}
-    />
+      <FlatList
+        style={{ backgroundColor: colors.bgBase, flex: 1 }}
+        contentContainerStyle={{
+          paddingTop: spacing.md,
+          paddingBottom: spacing.lg + insets.bottom,
+          gap: spacing.md,
+        }}
+        data={activeBoards}
+        keyExtractor={(board) => board.id}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.textSecondary} />}
+        ListHeaderComponent={
+          <View style={[contentStyle, { gap: spacing.md, paddingHorizontal: spacing.lg }]}>
+            <OfflineBanner />
+
+            {activeBoards.length > 0 && referenceBoard ? (
+              <QuickStatsRow configs={widgetConfigs} board={referenceBoard} dates={referenceDates} />
+            ) : null}
+
+            <Text style={{ color: colors.textSecondary, fontSize: 15 }}>
+              {activeBoards.length > 0 ? 'Tap a board to check in today.' : 'Your boards'}
+            </Text>
+          </View>
+        }
+        ListEmptyComponent={
+          loading ? null : (
+            <View style={[contentStyle, { paddingHorizontal: spacing.lg }]}>
+              <EmptyState
+                icon="fire"
+                headline="Nothing here yet"
+                body="Create your first habit board and start your heatmap today."
+                actionLabel="New Board"
+                onAction={() => router.push('/boards/create')}
+              />
+            </View>
+          )
+        }
+        renderItem={({ item }) => (
+          <View style={[contentStyle, { paddingHorizontal: spacing.lg }]}>
+            <BoardCard
+              board={item}
+              isCheckedInToday={todayDone.has(item.id)}
+              onPress={() => void handleToggle(item.id)}
+              onLongPress={() => router.push({ pathname: '/modal/check-in', params: { boardId: item.id } })}
+            />
+          </View>
+        )}
+      />
+    </View>
   );
 }

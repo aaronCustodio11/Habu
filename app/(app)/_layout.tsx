@@ -1,46 +1,16 @@
 import { Tabs } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useTheme } from '@/hooks/useTheme';
+import { AppTabBar } from '@/components/navigation/AppTabBar';
 
-/** Bottom tab bar (Home / Boards / Settings) - grayscale chrome. */
+/** Bottom tab bar (Home / Boards / Settings) via the universal floating pill. */
 export default function AppLayout() {
-  const { colors } = useTheme();
   return (
     <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: colors.textPrimary,
-        tabBarInactiveTintColor: colors.textTertiary,
-        tabBarStyle: { backgroundColor: colors.bgSurfaceRaised },
-      }}
+      screenOptions={{ headerShown: false }}
+      tabBar={(props) => <AppTabBar {...props} />}
     >
-      <Tabs.Screen
-        name="home/index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="home-variant" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="boards"
-        options={{
-          title: 'Boards',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="view-grid" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: 'Settings',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="cog-outline" size={size} color={color} />
-          ),
-        }}
-      />
+      <Tabs.Screen name="home/index" options={{ title: 'Home' }} />
+      <Tabs.Screen name="boards" options={{ title: 'Boards' }} />
+      <Tabs.Screen name="settings" options={{ title: 'Settings' }} />
     </Tabs>
   );
 }
