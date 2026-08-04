@@ -1,8 +1,10 @@
-import { ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
+import { useContentWidth } from '@/hooks/useContentWidth';
 import { spacing, typography } from '@/constants/Colors';
 
 interface Row {
@@ -15,6 +17,8 @@ interface Row {
 /** Settings menu (module 13). */
 export default function SettingsScreen() {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const { contentStyle } = useContentWidth();
   const { signOut, email } = useAuth();
 
   const rows: Row[] = [
@@ -25,41 +29,73 @@ export default function SettingsScreen() {
   ];
 
   return (
-    <ScrollView style={{ backgroundColor: colors.bgBase, flex: 1 }} contentContainerStyle={{ padding: spacing.lg, gap: spacing.md }}>
-      <Text style={{ color: colors.textPrimary, fontSize: typography.title, fontWeight: '800' }}>Settings</Text>
-
-      {email ? (
-        <Text style={{ color: colors.textTertiary, fontSize: 13 }}>Signed in as {email}</Text>
-      ) : null}
-
-      <View style={{ gap: spacing.xs }}>
-        {rows.map((row) => (
-          <View
-            key={row.key}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: spacing.md,
-              backgroundColor: colors.bgSurface,
-              borderRadius: 12,
-              padding: spacing.md,
-            }}
-          >
-            <MaterialCommunityIcons name={row.icon as never} size={22} color={colors.textSecondary} />
-            <Text style={{ color: colors.textPrimary, fontSize: 17, flex: 1 }} onPress={row.onPress}>
-              {row.label}
-            </Text>
-            <MaterialCommunityIcons name="chevron-right" size={22} color={colors.textTertiary} />
-          </View>
-        ))}
-      </View>
-
-      <Text
-        style={{ color: colors.textSecondary, fontSize: 15, textAlign: 'center', marginTop: spacing.lg, textDecorationLine: 'underline' }}
-        onPress={() => void signOut()}
+    <ScrollView
+      style={{ backgroundColor: colors.bgBase, flex: 1 }}
+      contentContainerStyle={{ flexGrow: 1, justifyContent: 'space-between' }}
+    >
+      <View
+        style={[
+          contentStyle,
+          {
+            paddingTop: spacing.lg + insets.top,
+            paddingBottom: spacing.lg + insets.bottom,
+            paddingHorizontal: spacing.lg,
+            gap: spacing.md,
+          },
+        ]}
       >
-        Sign out
-      </Text>
+        <Text style={{ color: colors.textPrimary, fontSize: typography.title, fontWeight: '800' }}>Settings</Text>
+
+        {email ? (
+          <Text style={{ color: colors.textTertiary, fontSize: 13 }}>Signed in as {email}</Text>
+        ) : null}
+
+        <View style={{ gap: spacing.xs }}>
+          {rows.map((row) => (
+            <Pressable
+              key={row.key}
+              accessibilityRole="button"
+              accessibilityLabel={row.label}
+              onPress={row.onPress}
+              style={({ pressed }) => [
+                {
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: spacing.md,
+                  backgroundColor: colors.bgSurface,
+                  borderRadius: 12,
+                  paddingHorizontal: spacing.md,
+                  minHeight: 56,
+                },
+                pressed && { opacity: 0.7 },
+              ]}
+            >
+              <MaterialCommunityIcons name={row.icon as never} size={22} color={colors.textSecondary} />
+              <Text style={{ color: colors.textPrimary, fontSize: 17, flex: 1 }} numberOfLines={1}>
+                {row.label}
+              </Text>
+              <MaterialCommunityIcons name="chevron-right" size={22} color={colors.textTertiary} />
+            </Pressable>
+          ))}
+        </View>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Sign out"
+          hitSlop={8}
+          onPress={() => void signOut()}
+          style={({ pressed }) => [
+            { minHeight: 44, alignItems: 'center', justifyContent: 'center', marginTop: spacing.lg },
+            pressed && { opacity: 0.6 },
+          ]}
+        >
+          <Text
+            style={{ color: colors.textSecondary, fontSize: 15, textAlign: 'center', textDecorationLine: 'underline' }}
+          >
+            Sign out
+          </Text>
+        </Pressable>
+      </View>
     </ScrollView>
   );
 }
