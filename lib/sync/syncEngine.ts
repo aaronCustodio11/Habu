@@ -27,6 +27,8 @@ function toServerBoard(row: BoardLocalRow) {
   const { pending_sync: _p, pending_delete: _d, ...server } = row;
   return {
     ...server,
+    track_amounts: row.track_amounts === 1,
+    use_default_amount: row.use_default_amount === 1,
     reminder_enabled: row.reminder_enabled === 1,
     archived: row.archived === 1,
   };
@@ -62,6 +64,10 @@ export async function syncNow(userId: string): Promise<SyncResult> {
       widgetConfigsRepo.getPending(),
     ]);
 
+    // Local board ids: reusing these avoids a redundant `boards.select(id)`
+    // round-trip inside the completions delete/pull helpers.
+    const localBoardIds = (await boardsRepo.getAll(userId)).map((row) => row.id);
+
     const boardsToDelete = pendingBoards.filter((row) => row.pending_delete === 1);
     const boardsToPush = pendingBoards.filter((row) => row.pending_delete === 0);
     const completionsToDelete = pendingCompletions.filter((row) => row.pending_delete === 1);
@@ -75,7 +81,7 @@ export async function syncNow(userId: string): Promise<SyncResult> {
     );
     await deleteCompletions(
       completionsToDelete.map((row) => row.id),
-      userId,
+      localBoardIds,
     );
     await deleteWidgetConfigs(
       widgetsToDelete.map((row) => row.id),
@@ -98,15 +104,17 @@ export async function syncNow(userId: string): Promise<SyncResult> {
     result.pushed += boardsToPush.length + completionsToPush.length + widgetsToPush.length;
 
     // 3. Pull the cloud state and reconcile locally.
-    const [cloudBoards, cloudCompletions, cloudWidgets] = await Promise.all([
-      fetchBoards(userId),
-      fetchCompletions(userId),
+    const cloudBoards = await fetchBoards(userId);
+    const [cloudCompletions, cloudWidgets] = await Promise.all([
+      fetchCompletions(cloudBoards.map((row) => row.id)),
       fetchWidgetConfigs(userId),
     ]);
 
     for (const row of cloudBoards) {
       await boardsRepo.upsertFromCloud({
         ...row,
+        track_amounts: row.track_amounts ? 1 : 0,
+        use_default_amount: row.use_default_amount ? 1 : 0,
         reminder_enabled: row.reminder_enabled ? 1 : 0,
         archived: row.archived ? 1 : 0,
       });
@@ -134,6 +142,28 @@ export async function syncNow(userId: string): Promise<SyncResult> {
 }
 
 let connectivityUnsubscribe: (() => void) | null = null;
+
+let pendingSyncUserId: string | null = null;
+let pendingSyncTimer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * Debounced sync: coalesces bursts of mutation-driven syncs (rapid check-ins,
+ * widget reorders, board edits) into a single pass ~2s after the last change.
+ * Safe — locally-changed rows stay marked `pending_sync` until the pass runs,
+ * so if the app is killed first the next launch/reconnect still pushes them.
+ * Use this for fire-and-forget mutation syncs; keep `syncNow` for callers that
+ * need the result immediately (launch hydration, pull-to-refresh, reconnect).
+ */
+export function scheduleSync(userId: string): void {
+  pendingSyncUserId = userId;
+  if (pendingSyncTimer) clearTimeout(pendingSyncTimer);
+  pendingSyncTimer = setTimeout(() => {
+    pendingSyncTimer = null;
+    const id = pendingSyncUserId;
+    pendingSyncUserId = null;
+    if (id) void syncNow(id);
+  }, 2000);
+}
 
 /**
  * Watches connectivity and runs a sync pass automatically whenever the device

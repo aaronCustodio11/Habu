@@ -95,7 +95,7 @@ export default function BoardDetailScreen() {
       {!loading ? (
         <View style={{ backgroundColor: colors.bgSurface, borderRadius: 16, padding: spacing.md, alignItems: 'center', gap: spacing.sm }}>
           <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Last 26 weeks</Text>
-          <HeatmapGrid color={board.color} completedDates={dates} weeks={26} />
+          <HeatmapGrid color={board.color} completedDates={dates} weeks={26} showDayLabels />
         </View>
       ) : null}
 

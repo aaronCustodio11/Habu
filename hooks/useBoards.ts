@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { boardsRepo } from '@/lib/db/repositories/boardsRepo';
 import { completionsRepo } from '@/lib/db/repositories/completionsRepo';
-import { syncNow } from '@/lib/sync/syncEngine';
+import { scheduleSync } from '@/lib/sync/syncEngine';
 import { scheduleDailyReminder, cancelDailyReminder } from '@/lib/notifications/scheduler';
 import { ensureNotificationsPermission } from '@/lib/notifications/permissions';
 import { todayISO } from '@/lib/dates';
@@ -66,7 +66,7 @@ export function useBoards(userId: string | null): UseBoardsResult {
       if (!userId) throw new Error('Not signed in.');
       const board = await boardsRepo.create(userId, draft);
       await applyReminder(board);
-      void syncNow(userId);
+      scheduleSync(userId);
       await reload();
       return board;
     },
@@ -79,7 +79,7 @@ export function useBoards(userId: string | null): UseBoardsResult {
       const updated = await boardsRepo.update(id, changes);
       if (updated) {
         await applyReminder(updated);
-        void syncNow(userId);
+        scheduleSync(userId);
         await reload();
       }
     },
@@ -91,7 +91,7 @@ export function useBoards(userId: string | null): UseBoardsResult {
       if (!userId) return;
       const updated = await boardsRepo.setArchived(id, archived);
       if (updated && archived) await cancelDailyReminder(id);
-      void syncNow(userId);
+      scheduleSync(userId);
       await reload();
     },
     [userId, reload],
@@ -102,7 +102,7 @@ export function useBoards(userId: string | null): UseBoardsResult {
       if (!userId) return;
       await cancelDailyReminder(id);
       await boardsRepo.remove(id);
-      void syncNow(userId);
+      scheduleSync(userId);
       await reload();
     },
     [userId, reload],
@@ -115,11 +115,11 @@ export function useBoards(userId: string | null): UseBoardsResult {
       const existing = await completionsRepo.getByBoardAndDate(boardId, today);
       if (existing) {
         await completionsRepo.removeForDate(boardId, today);
-        void syncNow(userId);
+        scheduleSync(userId);
         return false;
       }
       await completionsRepo.upsertCompletion({ boardId, completedOn: today });
-      void syncNow(userId);
+      scheduleSync(userId);
       return true;
     },
     [userId],

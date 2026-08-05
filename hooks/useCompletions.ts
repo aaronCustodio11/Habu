@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { completionsRepo } from '@/lib/db/repositories/completionsRepo';
-import { syncNow } from '@/lib/sync/syncEngine';
+import { scheduleSync } from '@/lib/sync/syncEngine';
 import { todayISO } from '@/lib/dates';
 import type { Completion } from '@/types/completion';
 
@@ -36,7 +36,7 @@ export function useCompletions(boardId: string, userId: string | null): UseCompl
   const checkIn = useCallback(
     async (note?: string) => {
       await completionsRepo.upsertCompletion({ boardId, completedOn: todayISO(), note });
-      if (userId) void syncNow(userId);
+      if (userId) scheduleSync(userId);
       await reload();
     },
     [boardId, userId, reload],
@@ -44,7 +44,7 @@ export function useCompletions(boardId: string, userId: string | null): UseCompl
 
   const undoToday = useCallback(async () => {
     await completionsRepo.removeForDate(boardId, todayISO());
-    if (userId) void syncNow(userId);
+    if (userId) scheduleSync(userId);
     await reload();
   }, [boardId, userId, reload]);
 

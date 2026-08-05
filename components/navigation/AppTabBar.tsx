@@ -2,6 +2,7 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { View } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { navigationStore } from '@/store/navigationStore';
 import {
   FloatingNavBar,
   type FloatingNavItem,
@@ -23,6 +24,9 @@ const ICONS: Record<string, FloatingNavItem['icon']> = {
  */
 export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const isCreateBoardFocused = navigationStore((s) => s.isCreateBoardFocused);
+
+  if (isCreateBoardFocused) return null;
 
   const items: FloatingNavItem[] = state.routes.map((route) => {
     const descriptor = descriptors[route.key];

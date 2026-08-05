@@ -10,7 +10,7 @@ import { WidgetPicker } from '@/components/stats/WidgetPicker';
 import { Glass } from '@/components/Glass';
 import { widgetConfigsRepo } from '@/lib/db/repositories/widgetConfigsRepo';
 import { completionsRepo } from '@/lib/db/repositories/completionsRepo';
-import { syncNow } from '@/lib/sync/syncEngine';
+import { scheduleSync } from '@/lib/sync/syncEngine';
 import { radius, spacing } from '@/constants/Colors';
 import type { WidgetConfig } from '@/types/widgetConfig';
 import type { WidgetTypeKey } from '@/constants/WidgetTypes';
@@ -44,13 +44,13 @@ export default function CustomizeHomeStatsModal() {
     const next = [...widgets];
     [next[index], next[target]] = [next[target], next[index]];
     await widgetConfigsRepo.reorder(next);
-    if (userId) void syncNow(userId);
+    if (userId) scheduleSync(userId);
     setWidgets(next);
   };
 
   const remove = async (config: WidgetConfig) => {
     await widgetConfigsRepo.remove(config.id);
-    if (userId) void syncNow(userId);
+    if (userId) scheduleSync(userId);
     await reload();
   };
 
@@ -58,7 +58,7 @@ export default function CustomizeHomeStatsModal() {
     if (!userId) return;
     if (widgets.some((config) => config.widgetType === widgetType)) return;
     await widgetConfigsRepo.create(userId, { scope: 'home', boardId: null, widgetType, position: widgets.length });
-    if (userId) void syncNow(userId);
+    if (userId) scheduleSync(userId);
     await reload();
   };
 
