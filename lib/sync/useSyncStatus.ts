@@ -10,7 +10,7 @@ export interface SyncStatus {
 }
 
 /**
- * Feeds OfflineBanner/SyncIndicator. `setSyncing` is handed out so the sync
+ * Feeds OfflineBanner. `setSyncing` is handed out so the sync
  * engine (or UI) can mark when a pass starts/stops.
  */
 export function useSyncStatus() {

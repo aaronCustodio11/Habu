@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { FlatList, Pressable, Text, View } from 'react-native';
 import { router } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/hooks/useAuth';
@@ -92,7 +93,10 @@ export default function BoardsListScreen() {
                   : 'Create your first board to start tracking a habit.'
               }
               actionLabel="New Board"
-              onAction={() => router.push('/boards/create')}
+              onAction={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+                router.push('/boards/create');
+              }}
             />
           </View>
         ) : (
@@ -117,7 +121,10 @@ export default function BoardsListScreen() {
             <Button
               label="New Board"
               variant="secondary"
-              onPress={() => router.push('/boards/create')}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+                router.push('/boards/create');
+              }}
               style={{ marginTop: spacing.sm }}
             />
           </View>

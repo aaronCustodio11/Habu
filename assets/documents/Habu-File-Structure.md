@@ -64,7 +64,7 @@ Habu/
 │
 ├── components/  ⟵ REUSABLE PIECES — no screen "owns" these, they get imported everywhere
 │   │
-│   ├── ui/                            # Generic, app-agnostic: Button, Input, Card, Modal
+│   ├── ui/                            # Generic, app-agnostic: Button, TextField, CheckButton
 │   ├── board/                         # Board-specific: BoardCard, IconPicker, ColorPicker
 │   │
 │   ├── heatmap/
@@ -87,8 +87,7 @@ Habu/
 │   │                                  # that connects "stats" to "widgets"
 │   │
 │   ├── EmptyState.tsx                 # "Nothing here yet" — reused on every empty screen
-│   ├── OfflineBanner.tsx              # "Offline — changes will sync later"
-│   └── SyncIndicator.tsx              # Small syncing spinner/shimmer
+│   └── OfflineBanner.tsx              # "Offline — changes will sync later"
 │
 ├── lib/  ⟵ LOGIC — no UI at all, just functions. This is the "engine room."
 │   │
@@ -112,7 +111,7 @@ Habu/
 │   │   ├── syncEngine.ts              # The actual push/pull/merge logic
 │   │   ├── netinfo.ts                 # "Are we online right now?"
 │   │   └── useSyncStatus.ts           # Turns syncEngine's state into something
-│   │                                  # OfflineBanner/SyncIndicator can display
+│   │                                  # OfflineBanner can display
 │   │
 │   ├── streaks/
 │   │   └── calculateStreak.ts         # Pure math: given check-in dates, what's the streak?
@@ -146,9 +145,7 @@ Habu/
 │   └── widgetConfig.ts
 │
 ├── assets/
-│   ├── fonts/
-│   ├── images/
-│   └── icons/
+│   └── images/
 │
 └── config files (project root)
     ├── app.json / app.config.js       # App name, bundle IDs, icons
@@ -185,7 +182,7 @@ The dev plan's 14 design modules, and exactly where each one lives in code. Use 
 | 9 | Boards Module (Active/Archived) | `app/(app)/boards/index.tsx` |
 | 10 | Reminders & Notifications | `app/(app)/settings/notifications.tsx` + `lib/notifications/` |
 | 11 | Empty States | `components/EmptyState.tsx` (shared, not one screen) |
-| 12 | Loading & Offline Indicator | `components/OfflineBanner.tsx`, `SyncIndicator.tsx` + `lib/sync/` |
+| 12 | Loading & Offline Indicator | `components/OfflineBanner.tsx` + `lib/sync/` |
 | 13 | Settings | `app/(app)/settings/*` |
 | 14 | Theming | `constants/Colors.ts`, `store/themeStore.ts`, `app/(app)/settings/theme.tsx` |
 

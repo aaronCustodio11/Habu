@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Heatmap V1 · Flat Grid</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #FFFFFF;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .card {
+    background: #FFFFFF;
+    border: 1px solid #E0E0E0;
+    border-radius: 24px;
+    padding: 24px;
+    width: 420px;
+  }
+  body { background: #F5F5F5; }
+  svg { display: block; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div id="grid"></div>
+  </div>
+
+<script>
+  const CELL = 16, GAP = 4, RX = 4, COLS = 15, ROWS = 7;
+  const LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const COLOR = "#43A047"; // board color from color picker
+  const EMPTY_FILL = "#E0E0E0"; // grayscale empty-cell fill
+  const TODAY_STROKE = "#1E1E1E";
+  const LABEL_W = 40;
+
+  // Deterministic "completed" pattern so all three variants match.
+  const done = new Set();
+  let seed = 7;
+  const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) if (rand() > 0.42) done.add(`${c}-${r}`);
+
+  const gw = COLS * (CELL + GAP) - GAP;
+  const gh = ROWS * (CELL + GAP) - GAP;
+  const svgW = LABEL_W + gw, svgH = gh;
+
+  let out = `<svg width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}">`;
+
+  for (let r = 0; r < ROWS; r++) {
+    const lx = LABEL_W - 8;
+    const ly = r * (CELL + GAP) + CELL / 2 + 3.5;
+    out += `<text x="${lx}" y="${ly}" text-anchor="end" font-size="10" fill="#9A9A9A" font-family="inherit">${LABELS[r]}</text>`;
+  }
+
+  const TODAY = { c: COLS - 1, r: 4 }; // last column, row 4 = today marker
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const x = LABEL_W + c * (CELL + GAP);
+      const y = r * (CELL + GAP);
+      const is = done.has(`${c}-${r}`);
+      const isToday = c === TODAY.c && r === TODAY.r;
+      out += `<rect x="${x}" y="${y}" width="${CELL}" height="${CELL}" rx="${RX}"
+        fill="${is ? COLOR : EMPTY_FILL}"
+        stroke="${isToday ? TODAY_STROKE : "none"}" stroke-width="${isToday ? 1.5 : 0}"/>`;
+    }
+  }
+  out += `</svg>`;
+  document.getElementById("grid").innerHTML = out;
+</script>
+</body>
+</html>

@@ -3,7 +3,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 export const DATABASE_NAME = 'habu.db';
 
 /** Bump this whenever a migration below is added. */
-export const DATABASE_VERSION = 1;
+export const DATABASE_VERSION = 2;
 
 const CREATE_TABLES = `
 CREATE TABLE IF NOT EXISTS boards (
@@ -12,6 +12,10 @@ CREATE TABLE IF NOT EXISTS boards (
   name TEXT NOT NULL,
   icon TEXT NOT NULL,
   color TEXT NOT NULL,
+  track_amounts INTEGER NOT NULL DEFAULT 0,
+  unit TEXT NOT NULL DEFAULT 'count',
+  use_default_amount INTEGER NOT NULL DEFAULT 0,
+  default_amount REAL,
   reminder_enabled INTEGER NOT NULL DEFAULT 0,
   reminder_time TEXT,
   archived INTEGER NOT NULL DEFAULT 0,
@@ -73,7 +77,13 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase): Promise<void> {
     await db.execAsync(CREATE_TABLES);
   }
 
-  // future: if (currentVersion === 1) { ... }
+  // v1 → v2: amount tracking on boards.
+  if (currentVersion === 1) {
+    await db.execAsync(`ALTER TABLE boards ADD COLUMN track_amounts INTEGER NOT NULL DEFAULT 0;`);
+    await db.execAsync(`ALTER TABLE boards ADD COLUMN unit TEXT NOT NULL DEFAULT 'count';`);
+    await db.execAsync(`ALTER TABLE boards ADD COLUMN use_default_amount INTEGER NOT NULL DEFAULT 0;`);
+    await db.execAsync(`ALTER TABLE boards ADD COLUMN default_amount REAL;`);
+  }
 
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION};`);
 }

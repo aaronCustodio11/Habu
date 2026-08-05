@@ -10,7 +10,7 @@ import { WidgetSlot } from '@/components/stats/WidgetSlot';
 import { WidgetPicker } from '@/components/stats/WidgetPicker';
 import { BackButton } from '@/components/ui/BackButton';
 import { widgetConfigsRepo } from '@/lib/db/repositories/widgetConfigsRepo';
-import { syncNow } from '@/lib/sync/syncEngine';
+import { scheduleSync } from '@/lib/sync/syncEngine';
 import { spacing, typography } from '@/constants/Colors';
 import type { WidgetConfig } from '@/types/widgetConfig';
 import type { WidgetTypeKey } from '@/constants/WidgetTypes';
@@ -41,13 +41,13 @@ export default function CustomizeWidgetsScreen() {
     const next = [...widgets];
     [next[index], next[target]] = [next[target], next[index]];
     await widgetConfigsRepo.reorder(next);
-    if (userId) void syncNow(userId);
+    if (userId) scheduleSync(userId);
     setWidgets(next);
   };
 
   const remove = async (config: WidgetConfig) => {
     await widgetConfigsRepo.remove(config.id);
-    if (userId) void syncNow(userId);
+    if (userId) scheduleSync(userId);
     await reload();
   };
 
@@ -56,7 +56,7 @@ export default function CustomizeWidgetsScreen() {
     const existing = await widgetConfigsRepo.getAll(userId, 'board', boardId);
     if (existing.some((config) => config.widgetType === widgetType)) return;
     await widgetConfigsRepo.create(userId, { scope: 'board', boardId, widgetType, position: existing.length });
-    if (userId) void syncNow(userId);
+    if (userId) scheduleSync(userId);
     await reload();
   };
 

@@ -13,6 +13,10 @@ export type BoardRow = {
   name: string;
   icon: string;
   color: string;
+  track_amounts: boolean;
+  unit: string;
+  use_default_amount: boolean;
+  default_amount: number | null;
   reminder_enabled: boolean;
   reminder_time: string | null;
   archived: boolean;
@@ -26,6 +30,10 @@ export type BoardInsert = {
   name: string;
   icon: string;
   color: string;
+  track_amounts?: boolean;
+  unit?: string;
+  use_default_amount?: boolean;
+  default_amount?: number | null;
   reminder_enabled?: boolean;
   reminder_time?: string | null;
   archived?: boolean;
@@ -79,6 +87,22 @@ export type WidgetConfigInsert = {
 
 export type WidgetConfigUpdate = Partial<WidgetConfigRow>;
 
+export type ProfileRow = {
+  user_id: string;
+  username: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ProfileInsert = {
+  user_id: string;
+  username: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type ProfileUpdate = Partial<ProfileRow>;
+
 export type Database = {
   public: {
     Tables: {
@@ -98,6 +122,12 @@ export type Database = {
         Row: WidgetConfigRow;
         Insert: WidgetConfigInsert;
         Update: WidgetConfigUpdate;
+        Relationships: [];
+      };
+      profiles: {
+        Row: ProfileRow;
+        Insert: ProfileInsert;
+        Update: ProfileUpdate;
         Relationships: [];
       };
     };

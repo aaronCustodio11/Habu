@@ -1,10 +1,17 @@
-import { useState } from 'react';
-import { Switch, Text, View } from 'react-native';
+import { useEffect, useRef, useState, type MutableRefObject } from 'react';
+import { Pressable, Switch, Text, View } from 'react-native';
+import { router } from 'expo-router';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
 import { TextField } from '@/components/ui/TextField';
 import { Button } from '@/components/ui/Button';
 import { ColorPicker } from '@/components/board/ColorPicker';
-import { IconPicker } from '@/components/board/IconPicker';
+import { AmountStepper } from '@/components/board/AmountStepper';
+import { HeatmapGrid } from '@/components/heatmap/HeatmapGrid';
+import { getBoardIcon } from '@/constants/Icons';
+import { getUnitLabel } from '@/constants/Units';
+import { iconPickStore } from '@/store/iconPickStore';
+import { unitPickStore } from '@/store/unitPickStore';
 import { radius, spacing } from '@/constants/Colors';
 import type { Board, BoardDraft } from '@/types/board';
 
@@ -12,42 +19,154 @@ export interface BoardFormProps {
   initial?: Board;
   submitLabel: string;
   onSubmit: (draft: BoardDraft) => void | Promise<void>;
+  /** The header's confirm button sets this to the form's submit function. */
+  submitRef?: MutableRefObject<(() => void) | null>;
 }
 
 const PRESET_TIMES = ['07:00', '09:00', '12:00', '18:00', '21:00'];
 
-/** Shared create/edit board form (name, icon, color, reminder). */
-export function BoardForm({ initial, submitLabel, onSubmit }: BoardFormProps) {
+/** Shared create/edit board form (preview, name, icon, color, amounts, reminder). */
+export function BoardForm({ initial, submitLabel, onSubmit, submitRef }: BoardFormProps) {
   const { colors } = useTheme();
   const [name, setName] = useState(initial?.name ?? '');
   const [icon, setIcon] = useState(initial?.icon ?? 'fire');
   const [color, setColor] = useState(initial?.color ?? '#43A047');
+  const [trackAmounts, setTrackAmounts] = useState(initial?.trackAmounts ?? false);
+  const [unit, setUnit] = useState(initial?.unit ?? 'count');
+  const [useDefaultAmount, setUseDefaultAmount] = useState(initial?.useDefaultAmount ?? false);
+  const [defaultAmount, setDefaultAmount] = useState(initial?.defaultAmount ?? 1);
   const [reminderEnabled, setReminderEnabled] = useState(initial?.reminderEnabled ?? false);
   const [reminderTime, setReminderTime] = useState(initial?.reminderTime ?? '18:00');
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  // Ref guard (not state) so two entry points (header Check + footer button)
+  // can't both pass a fast double-tap before React re-renders → no duplicate
+  // board creation / duplicate router.back().
+  const submittingRef = useRef(false);
 
-  const submit = () => {
+  // Pick up the icon chosen in the pick-icon modal and clear the handoff.
+  useEffect(() => {
+    return iconPickStore.subscribe((state) => {
+      if (state.picked) {
+        setIcon(state.picked);
+        iconPickStore.getState().setPicked(null);
+      }
+    });
+  }, []);
+
+  // Pick up the unit chosen in the pick-unit modal and clear the handoff.
+  useEffect(() => {
+    return unitPickStore.subscribe((state) => {
+      if (state.picked) {
+        setUnit(state.picked);
+        unitPickStore.getState().setPicked(null);
+      }
+    });
+  }, []);
+
+  const submit = async () => {
+    if (submittingRef.current) return;
     if (!name.trim()) {
       setError('Give your board a name.');
       return;
     }
     setError(null);
-    void onSubmit({
-      name: name.trim(),
-      icon,
-      color,
-      reminderEnabled,
-      reminderTime: reminderEnabled ? reminderTime : null,
-    });
+    submittingRef.current = true;
+    setSubmitting(true);
+    try {
+      await onSubmit({
+        name: name.trim(),
+        icon,
+        color,
+        trackAmounts,
+        unit: trackAmounts ? unit : 'count',
+        useDefaultAmount: trackAmounts && useDefaultAmount,
+        defaultAmount: trackAmounts && useDefaultAmount ? defaultAmount : null,
+        reminderEnabled,
+        reminderTime: reminderEnabled ? reminderTime : null,
+      });
+    } finally {
+      submittingRef.current = false;
+      setSubmitting(false);
+    }
   };
+
+  if (submitRef) submitRef.current = submit;
+
+  const iconGlyph = getBoardIcon(icon).icon;
+
+  const toggleRow = (
+    title: string,
+    subtitle: string,
+    value: boolean,
+    onChange: (value: boolean) => void,
+  ) => (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.sm,
+        backgroundColor: colors.bgSurface,
+        borderRadius: radius.md,
+        padding: spacing.md,
+      }}
+    >
+      <View style={{ flex: 1 }}>
+        <Text style={{ color: colors.textPrimary, fontSize: 17 }}>{title}</Text>
+        <Text style={{ color: colors.textTertiary, fontSize: 13 }}>{subtitle}</Text>
+      </View>
+      <Switch
+        value={value}
+        onValueChange={onChange}
+        trackColor={{ true: colors.textPrimary, false: colors.borderSubtle }}
+        thumbColor={colors.bgSurfaceRaised}
+      />
+    </View>
+  );
 
   return (
     <View style={{ gap: spacing.lg }}>
-      <TextField label="Name" value={name} onChangeText={setName} placeholder="e.g. Run 5k" />
+      {/* Live heatmap preview of the board (design doc §7.6). */}
+      <View
+        style={{
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: colors.bgSurfaceRaised,
+          borderWidth: 1,
+          borderColor: colors.borderSubtle,
+          borderRadius: radius.lg,
+          padding: spacing.lg,
+        }}
+      >
+        <HeatmapGrid color={color} weeks={15} cellSize={16} gap={4} showDayLabels />
+      </View>
 
+      {/* Name, with the icon button to its left (opens the icon sheet). */}
       <View style={{ gap: spacing.sm }}>
-        <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Icon</Text>
-        <IconPicker value={icon} color={color} onChange={setIcon} />
+        <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Name</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Choose an icon"
+            onPress={() =>
+              router.push({ pathname: '/modal/pick-icon', params: { current: icon, color } })
+            }
+            style={({ pressed }) => ({
+              width: 48,
+              height: 48,
+              borderRadius: radius.sm,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: color,
+              opacity: pressed ? 0.7 : 1,
+            })}
+          >
+            <MaterialCommunityIcons name={iconGlyph} size={24} color="#FFFFFF" />
+          </Pressable>
+          <View style={{ flex: 1 }}>
+            <TextField value={name} onChangeText={setName} placeholder="e.g. Run 5k" />
+          </View>
+        </View>
       </View>
 
       <View style={{ gap: spacing.sm }}>
@@ -55,29 +174,56 @@ export function BoardForm({ initial, submitLabel, onSubmit }: BoardFormProps) {
         <ColorPicker value={color} onChange={setColor} />
       </View>
 
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: spacing.sm,
-          backgroundColor: colors.bgSurface,
-          borderRadius: radius.md,
-          padding: spacing.md,
-        }}
-      >
-        <View style={{ flex: 1 }}>
-          <Text style={{ color: colors.textPrimary, fontSize: 17 }}>Daily reminder</Text>
-          <Text style={{ color: colors.textTertiary, fontSize: 13 }}>
-            A nudge to keep the streak alive.
-          </Text>
+      {toggleRow(
+        'Track Amounts',
+        'Record a number with each check-in, like minutes or distance.',
+        trackAmounts,
+        setTrackAmounts,
+      )}
+
+      {trackAmounts ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Choose a unit"
+          onPress={() => router.push({ pathname: '/modal/pick-unit', params: { current: unit } })}
+          style={({ pressed }) => ({
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: spacing.sm,
+            backgroundColor: colors.bgSurface,
+            borderRadius: radius.md,
+            padding: spacing.md,
+            opacity: pressed ? 0.7 : 1,
+          })}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: colors.textPrimary, fontSize: 17 }}>Unit</Text>
+            <Text style={{ color: colors.textTertiary, fontSize: 13 }}>{getUnitLabel(unit)}</Text>
+          </View>
+          <MaterialCommunityIcons name="chevron-right" size={22} color={colors.textTertiary} />
+        </Pressable>
+      ) : null}
+
+      {toggleRow(
+        'Use Default Amount',
+        'Pre-fill every check-in with a set amount.',
+        useDefaultAmount,
+        setUseDefaultAmount,
+      )}
+
+      {useDefaultAmount ? (
+        <View style={{ gap: spacing.sm }}>
+          <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Default amount</Text>
+          <AmountStepper value={defaultAmount} min={1} onChange={setDefaultAmount} />
         </View>
-        <Switch
-          value={reminderEnabled}
-          onValueChange={setReminderEnabled}
-          trackColor={{ true: colors.textPrimary, false: colors.borderSubtle }}
-          thumbColor={colors.bgSurfaceRaised}
-        />
-      </View>
+      ) : null}
+
+      {toggleRow(
+        'Daily reminder',
+        'A nudge to keep the streak alive.',
+        reminderEnabled,
+        setReminderEnabled,
+      )}
 
       {reminderEnabled ? (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
@@ -109,7 +255,7 @@ export function BoardForm({ initial, submitLabel, onSubmit }: BoardFormProps) {
 
       {error ? <Text style={{ color: colors.textSecondary, fontSize: 14 }}>{error}</Text> : null}
 
-      <Button label={submitLabel} onPress={submit} />
+      <Button label={submitLabel} onPress={() => void submit()} disabled={submitting} />
     </View>
   );
 }

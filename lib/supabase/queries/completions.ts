@@ -3,11 +3,8 @@ import type { Database } from '@/types/database.types';
 
 export type CompletionRow = Database['public']['Tables']['completions']['Row'];
 
-export async function fetchCompletions(userId: string): Promise<CompletionRow[]> {
-  if (!isSupabaseConfigured || !supabase) return [];
-  const { data: boards } = await supabase.from('boards').select('id').eq('user_id', userId);
-  const boardIds = (boards ?? []).map((row) => row.id);
-  if (boardIds.length === 0) return [];
+export async function fetchCompletions(boardIds: string[]): Promise<CompletionRow[]> {
+  if (!isSupabaseConfigured || !supabase || boardIds.length === 0) return [];
   const { data, error } = await supabase
     .from('completions')
     .select('*')
@@ -28,11 +25,11 @@ export async function upsertCompletions(rows: CompletionRow[]): Promise<void> {
   if (error) console.warn('[sync] upsert completions failed:', error.message);
 }
 
-export async function deleteCompletions(ids: string[], userId: string): Promise<void> {
-  if (!isSupabaseConfigured || !supabase || ids.length === 0) return;
-  const { data: boards } = await supabase.from('boards').select('id').eq('user_id', userId);
-  const boardIds = (boards ?? []).map((row) => row.id);
-  if (boardIds.length === 0) return;
+export async function deleteCompletions(
+  ids: string[],
+  boardIds: string[],
+): Promise<void> {
+  if (!isSupabaseConfigured || !supabase || ids.length === 0 || boardIds.length === 0) return;
   const { error } = await supabase
     .from('completions')
     .delete()
