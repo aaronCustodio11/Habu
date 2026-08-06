@@ -7,6 +7,7 @@ create table if not exists public.boards (
   name text not null,
   icon text not null,
   color text not null,
+  layout text not null default 'heatmap',
   track_amounts boolean not null default false,
   unit text not null default 'count',
   use_default_amount boolean not null default false,
@@ -23,6 +24,9 @@ alter table public.boards add column if not exists track_amounts boolean not nul
 alter table public.boards add column if not exists unit text not null default 'count';
 alter table public.boards add column if not exists use_default_amount boolean not null default false;
 alter table public.boards add column if not exists default_amount double precision;
+
+-- Board visualization layout (v3). Defaults to the classic heatmap.
+alter table public.boards add column if not exists layout text not null default 'heatmap';
 
 create table if not exists public.completions (
   id text primary key,

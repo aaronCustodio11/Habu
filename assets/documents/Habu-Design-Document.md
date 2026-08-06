@@ -268,7 +268,7 @@ Applying the system above to each module from the PRD (§6) — only calling out
 | Onboarding | Full-bleed `bg-base`, large Display-scale headline per slide, no glass (pre-auth, keep it simple/fast-loading) |
 | Login/Sign-up | Solid `bg-base`, standard form inputs (§7.5), no glass |
 | Home | Glass header (iOS 26+)/solid header (else); board list on solid cards; quick stats as 2–3 widget tiles (§7.7) |
-| Create/Edit Board | Standard sheet, icon/color pickers as a grid of swatches (grayscale chrome around them, full color in the swatches themselves) |
+| Create/Edit Board | Full-screen pushed screen (native card push on all platforms incl. iOS 26+); icon/color pickers as a grid of swatches (grayscale chrome around them, full color in the swatches themselves); content caps and centers on large screens |
 | Check-in modal | Glass sheet backing (iOS 26+) with solid content card inside, per §7.3 |
 | Selected Board Stats | Full heatmap (board color) + widget tiles; glass header only, all content solid |
 | Boards (Active/Archived) | Segmented control in grayscale; archived rows slightly reduced opacity on `text-secondary`/`text-tertiary` to visually de-emphasize without color |

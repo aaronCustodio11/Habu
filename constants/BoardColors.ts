@@ -8,12 +8,11 @@ export const BOARD_COLORS = [
   '#E53935', // red
   '#D81B60', // pink
   '#8E24AA', // purple
-  '#5E35B1', // deep purple
-  '#3949AB', // indigo
   '#1E88E5', // blue
   '#00ACC1', // cyan
   '#00897B', // teal
   '#43A047', // green
+  '#C0CA33', // lime
   '#7CB342', // light green
   '#FDD835', // yellow
   '#FB8C00', // orange

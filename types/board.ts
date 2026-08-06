@@ -1,3 +1,5 @@
+import type { BoardLayout } from '@/constants/BoardLayouts';
+
 /** The shape of a board (camelCase, domain-facing). */
 export interface Board {
   id: string;
@@ -5,6 +7,8 @@ export interface Board {
   name: string;
   icon: string;
   color: string;
+  /** How the board's history is visualized on the detail screen. */
+  layout: BoardLayout;
   /** When true the board records an amount (with `unit`) on each check-in. */
   trackAmounts: boolean;
   /** Unit label used when `trackAmounts` is on (e.g. count, minutes, km). */
@@ -25,6 +29,7 @@ export type BoardDraft = {
   name: string;
   icon: string;
   color: string;
+  layout: BoardLayout;
   trackAmounts: boolean;
   unit: string;
   useDefaultAmount: boolean;

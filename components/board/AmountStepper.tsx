@@ -40,15 +40,15 @@ export function AmountStepper({ value, min = 0, step = 1, onChange }: AmountStep
         accessibilityLabel={dir < 0 ? 'Decrease' : 'Increase'}
         disabled={disabled}
         onPress={() => adjust(dir * step)}
-        style={({ pressed }) => ({
+        style={{
           width: 44,
           height: 44,
           borderRadius: radius.md,
           alignItems: 'center',
           justifyContent: 'center',
           backgroundColor: colors.bgBase,
-          opacity: disabled ? 0.4 : pressed ? 0.7 : 1,
-        })}
+          opacity: disabled ? 0.4 : 1,
+        }}
       >
         <MaterialCommunityIcons name={dir < 0 ? 'minus' : 'plus'} size={22} color={colors.textPrimary} />
       </Pressable>

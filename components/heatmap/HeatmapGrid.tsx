@@ -1,5 +1,5 @@
-import { useMemo, useRef } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef } from 'react';
+import { ScrollView, Text, View, type LayoutChangeEvent } from 'react-native';
 import Svg, { Rect } from 'react-native-svg';
 import { useTheme } from '@/hooks/useTheme';
 import { addDays, eachDayBetween, fromISODate, toISODate, todayISO } from '@/lib/dates';
@@ -68,12 +68,42 @@ export function HeatmapGrid({
   const height = 7 * cellSize + 6 * gap + pad * 2;
 
   const scrollRef = useRef<ScrollView>(null);
-  const didInitialScroll = useRef(false);
-  const scrollToEndOnce = () => {
-    if (didInitialScroll.current) return;
-    didInitialScroll.current = true;
-    requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: false }));
+  const viewportWidthRef = useRef(0);
+  const contentWidthRef = useRef(0);
+
+  // Default view = the latest day (right edge); the user scrolls left to reach
+  // the past. `onLayout` and `onContentSizeChange` fire at slightly different
+  // times, so we apply the offset whenever both widths are known. It's
+  // idempotent on purpose: the native scroll offset can be silently dropped if
+  // it's set before the ScrollView commits its content size (a real race on
+  // Android and during mount), so we re-apply it until it lands.
+  const scrollToLatest = () => {
+    const viewportWidth = viewportWidthRef.current;
+    const contentWidth = contentWidthRef.current;
+    if (viewportWidth <= 0 || contentWidth <= 0) return;
+    const maxOffset = Math.max(contentWidth - viewportWidth, 0);
+    if (maxOffset <= 0) return;
+    scrollRef.current?.scrollTo({ x: maxOffset, animated: false });
   };
+
+  const handleLayout = (e: LayoutChangeEvent) => {
+    viewportWidthRef.current = e.nativeEvent.layout.width;
+    scrollToLatest();
+  };
+
+  const handleContentSizeChange = (width: number, _height: number) => {
+    contentWidthRef.current = width;
+    scrollToLatest();
+  };
+
+  // Post-mount fallback: once the tree has fully measured, re-apply the
+  // latest-day offset a few more times in case the layout/content callbacks
+  // fired before native committed. Content size is fixed per mount, so each
+  // call scrolls to the same spot and is a cheap no-op after the first.
+  useEffect(() => {
+    const timers = [0, 50, 150, 400].map((delay) => setTimeout(scrollToLatest, delay));
+    return () => timers.forEach(clearTimeout);
+  }, []);
 
   return (
     <View style={{ flexDirection: 'row' }}>
@@ -107,7 +137,8 @@ export function HeatmapGrid({
         showsHorizontalScrollIndicator={false}
         style={{ height, flex: 1 }}
         contentContainerStyle={{ paddingRight: pad }}
-        onContentSizeChange={scrollToEndOnce}
+        onLayout={handleLayout}
+        onContentSizeChange={handleContentSizeChange}
         snapToInterval={cellSize + gap}
         snapToAlignment="start"
         decelerationRate="fast"
@@ -127,7 +158,7 @@ export function HeatmapGrid({
                 height={cellSize}
                 rx={2}
                 fill={isDone ? color : colors.borderSubtle}
-                stroke={isToday ? colors.textPrimary : 'none'}
+                stroke={isToday ? color : 'none'}
                 strokeWidth={isToday ? 1.5 : 0}
                 onPress={onDayPress ? () => onDayPress(day) : undefined}
               />

@@ -13,6 +13,7 @@ export type BoardRow = {
   name: string;
   icon: string;
   color: string;
+  layout: 'heatmap' | 'pill' | 'ring';
   track_amounts: boolean;
   unit: string;
   use_default_amount: boolean;
@@ -30,6 +31,7 @@ export type BoardInsert = {
   name: string;
   icon: string;
   color: string;
+  layout?: 'heatmap' | 'pill' | 'ring';
   track_amounts?: boolean;
   unit?: string;
   use_default_amount?: boolean;

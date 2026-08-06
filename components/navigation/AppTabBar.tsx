@@ -1,8 +1,7 @@
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { View } from 'react-native';
-import { router } from 'expo-router';
+import { router, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { navigationStore } from '@/store/navigationStore';
 import {
   FloatingNavBar,
   type FloatingNavItem,
@@ -24,9 +23,12 @@ const ICONS: Record<string, FloatingNavItem['icon']> = {
  */
 export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
-  const isCreateBoardFocused = navigationStore((s) => s.isCreateBoardFocused);
+  const pathname = usePathname();
 
-  if (isCreateBoardFocused) return null;
+  // Create Board is a full-screen pushed route (not a sheet), so the floating
+  // nav bar stays hidden while it's open — the back affordance in the screen
+  // header is the way out.
+  if (pathname === '/boards/create') return null;
 
   const items: FloatingNavItem[] = state.routes.map((route) => {
     const descriptor = descriptors[route.key];

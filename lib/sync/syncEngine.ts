@@ -10,6 +10,7 @@ import {
   deleteCompletions,
   deleteWidgetConfigs,
 } from '@/lib/supabase/queries';
+import type { BoardRow } from '@/lib/supabase/queries/boards';
 import { boardsRepo, type BoardLocalRow } from '@/lib/db/repositories/boardsRepo';
 import { completionsRepo, type CompletionLocalRow } from '@/lib/db/repositories/completionsRepo';
 import { widgetConfigsRepo, type WidgetConfigLocalRow } from '@/lib/db/repositories/widgetConfigsRepo';
@@ -27,6 +28,7 @@ function toServerBoard(row: BoardLocalRow) {
   const { pending_sync: _p, pending_delete: _d, ...server } = row;
   return {
     ...server,
+    layout: server.layout as BoardRow['layout'],
     track_amounts: row.track_amounts === 1,
     use_default_amount: row.use_default_amount === 1,
     reminder_enabled: row.reminder_enabled === 1,

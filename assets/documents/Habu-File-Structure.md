@@ -64,7 +64,7 @@ Habu/
 │
 ├── components/  ⟵ REUSABLE PIECES — no screen "owns" these, they get imported everywhere
 │   │
-│   ├── ui/                            # Generic, app-agnostic: Button, TextField, CheckButton
+│   ├── ui/                            # Generic, app-agnostic: Button, TextField, BackButton
 │   ├── board/                         # Board-specific: BoardCard, IconPicker, ColorPicker
 │   │
 │   ├── heatmap/
