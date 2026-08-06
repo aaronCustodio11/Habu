@@ -8,8 +8,12 @@ import { Button } from '@/components/ui/Button';
 import { ColorPicker } from '@/components/board/ColorPicker';
 import { AmountStepper } from '@/components/board/AmountStepper';
 import { HeatmapGrid } from '@/components/heatmap/HeatmapGrid';
+import { LayoutPicker } from '@/components/layouts/LayoutPicker';
+import { PillGrid } from '@/components/layouts/PillGrid';
+import { ProgressRing } from '@/components/layouts/ProgressRing';
 import { getBoardIcon } from '@/constants/Icons';
 import { getUnitLabel } from '@/constants/Units';
+import type { BoardLayout } from '@/constants/BoardLayouts';
 import { iconPickStore } from '@/store/iconPickStore';
 import { unitPickStore } from '@/store/unitPickStore';
 import { radius, spacing } from '@/constants/Colors';
@@ -31,6 +35,7 @@ export function BoardForm({ initial, submitLabel, onSubmit, submitRef }: BoardFo
   const [name, setName] = useState(initial?.name ?? '');
   const [icon, setIcon] = useState(initial?.icon ?? 'fire');
   const [color, setColor] = useState(initial?.color ?? '#43A047');
+  const [layout, setLayout] = useState<BoardLayout>(initial?.layout ?? 'heatmap');
   const [trackAmounts, setTrackAmounts] = useState(initial?.trackAmounts ?? false);
   const [unit, setUnit] = useState(initial?.unit ?? 'count');
   const [useDefaultAmount, setUseDefaultAmount] = useState(initial?.useDefaultAmount ?? false);
@@ -78,6 +83,7 @@ export function BoardForm({ initial, submitLabel, onSubmit, submitRef }: BoardFo
         name: name.trim(),
         icon,
         color,
+        layout,
         trackAmounts,
         unit: trackAmounts ? unit : 'count',
         useDefaultAmount: trackAmounts && useDefaultAmount,
@@ -126,47 +132,62 @@ export function BoardForm({ initial, submitLabel, onSubmit, submitRef }: BoardFo
 
   return (
     <View style={{ gap: spacing.lg }}>
-      {/* Live heatmap preview of the board (design doc §7.6). */}
+      {/* Live heatmap preview of the board (design doc §7.6), with the icon + name at its top-left. */}
       <View
         style={{
-          alignItems: 'center',
-          justifyContent: 'center',
           backgroundColor: colors.bgSurfaceRaised,
           borderWidth: 1,
           borderColor: colors.borderSubtle,
           borderRadius: radius.lg,
-          padding: spacing.lg,
+          padding: spacing.md,
+          gap: spacing.xs,
         }}
       >
-        <HeatmapGrid color={color} weeks={15} cellSize={16} gap={4} showDayLabels />
-      </View>
-
-      {/* Name, with the icon button to its left (opens the icon sheet). */}
-      <View style={{ gap: spacing.sm }}>
-        <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Name</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Choose an icon"
             onPress={() =>
               router.push({ pathname: '/modal/pick-icon', params: { current: icon, color } })
             }
-            style={({ pressed }) => ({
-              width: 48,
-              height: 48,
-              borderRadius: radius.sm,
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: radius.full,
               alignItems: 'center',
               justifyContent: 'center',
-              backgroundColor: color,
-              opacity: pressed ? 0.7 : 1,
-            })}
+              backgroundColor: colors.bgBase,
+              borderWidth: 1,
+              borderColor: colors.borderSubtle,
+            }}
           >
-            <MaterialCommunityIcons name={iconGlyph} size={24} color="#FFFFFF" />
+            <MaterialCommunityIcons name={iconGlyph} size={22} color={colors.textPrimary} />
           </Pressable>
           <View style={{ flex: 1 }}>
-            <TextField value={name} onChangeText={setName} placeholder="e.g. Run 5k" />
+            <TextField
+              variant="flat"
+              placeholder="Enter Board Name"
+              placeholderIcon="pencil-outline"
+              value={name}
+              onChangeText={setName}
+              style={{ textAlign: 'left' }}
+            />
           </View>
         </View>
+        {layout === 'pill' ? (
+          <PillGrid color={color} days={30} />
+        ) : layout === 'ring' ? (
+          <View style={{ alignItems: 'center' }}>
+            <ProgressRing color={color} days={30} />
+          </View>
+        ) : (
+          <HeatmapGrid color={color} weeks={15} cellSize={16} gap={4} showDayLabels />
+        )}
+      </View>
+
+      <View style={{ gap: spacing.sm }}>
+        <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Layout</Text>
+        <LayoutPicker value={layout} onChange={setLayout} />
       </View>
 
       <View style={{ gap: spacing.sm }}>
@@ -186,15 +207,14 @@ export function BoardForm({ initial, submitLabel, onSubmit, submitRef }: BoardFo
           accessibilityRole="button"
           accessibilityLabel="Choose a unit"
           onPress={() => router.push({ pathname: '/modal/pick-unit', params: { current: unit } })}
-          style={({ pressed }) => ({
+          style={{
             flexDirection: 'row',
             alignItems: 'center',
             gap: spacing.sm,
             backgroundColor: colors.bgSurface,
             borderRadius: radius.md,
             padding: spacing.md,
-            opacity: pressed ? 0.7 : 1,
-          })}
+          }}
         >
           <View style={{ flex: 1 }}>
             <Text style={{ color: colors.textPrimary, fontSize: 17 }}>Unit</Text>

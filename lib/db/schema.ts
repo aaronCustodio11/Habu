@@ -3,7 +3,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 export const DATABASE_NAME = 'habu.db';
 
 /** Bump this whenever a migration below is added. */
-export const DATABASE_VERSION = 2;
+export const DATABASE_VERSION = 3;
 
 const CREATE_TABLES = `
 CREATE TABLE IF NOT EXISTS boards (
@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS boards (
   name TEXT NOT NULL,
   icon TEXT NOT NULL,
   color TEXT NOT NULL,
+  layout TEXT NOT NULL DEFAULT 'heatmap',
   track_amounts INTEGER NOT NULL DEFAULT 0,
   unit TEXT NOT NULL DEFAULT 'count',
   use_default_amount INTEGER NOT NULL DEFAULT 0,
@@ -83,6 +84,11 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase): Promise<void> {
     await db.execAsync(`ALTER TABLE boards ADD COLUMN unit TEXT NOT NULL DEFAULT 'count';`);
     await db.execAsync(`ALTER TABLE boards ADD COLUMN use_default_amount INTEGER NOT NULL DEFAULT 0;`);
     await db.execAsync(`ALTER TABLE boards ADD COLUMN default_amount REAL;`);
+  }
+
+  // v2 → v3: board visualization layout.
+  if (currentVersion === 2) {
+    await db.execAsync(`ALTER TABLE boards ADD COLUMN layout TEXT NOT NULL DEFAULT 'heatmap';`);
   }
 
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION};`);

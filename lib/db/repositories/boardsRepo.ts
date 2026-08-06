@@ -9,6 +9,7 @@ export interface BoardLocalRow {
   name: string;
   icon: string;
   color: string;
+  layout: string;
   track_amounts: number;
   unit: string;
   use_default_amount: number;
@@ -29,6 +30,7 @@ function mapRow(row: BoardLocalRow): Board {
     name: row.name,
     icon: row.icon,
     color: row.color,
+    layout: row.layout as Board['layout'],
     trackAmounts: row.track_amounts === 1,
     unit: row.unit,
     useDefaultAmount: row.use_default_amount === 1,
@@ -48,6 +50,7 @@ export function toRow(board: Board): Omit<BoardLocalRow, 'pending_sync' | 'pendi
     name: board.name,
     icon: board.icon,
     color: board.color,
+    layout: board.layout,
     track_amounts: board.trackAmounts ? 1 : 0,
     unit: board.unit,
     use_default_amount: board.useDefaultAmount ? 1 : 0,
@@ -70,6 +73,7 @@ export const boardsRepo = {
       name: draft.name.trim(),
       icon: draft.icon,
       color: draft.color,
+      layout: draft.layout ?? 'heatmap',
       trackAmounts: draft.trackAmounts,
       unit: draft.trackAmounts ? draft.unit : 'count',
       useDefaultAmount: draft.trackAmounts ? draft.useDefaultAmount : false,
@@ -83,13 +87,14 @@ export const boardsRepo = {
     const row = toRow(board);
     await db.runAsync(
       `INSERT INTO boards
-        (id, user_id, name, icon, color, track_amounts, unit, use_default_amount, default_amount, reminder_enabled, reminder_time, archived, created_at, updated_at, pending_sync)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+        (id, user_id, name, icon, color, layout, track_amounts, unit, use_default_amount, default_amount, reminder_enabled, reminder_time, archived, created_at, updated_at, pending_sync)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
       row.id,
       row.user_id,
       row.name,
       row.icon,
       row.color,
+      row.layout,
       row.track_amounts,
       row.unit,
       row.use_default_amount,
@@ -149,12 +154,13 @@ export const boardsRepo = {
     };
     const row = toRow(next);
     await db.runAsync(
-      `UPDATE boards SET name = ?, icon = ?, color = ?, track_amounts = ?, unit = ?, use_default_amount = ?, default_amount = ?, reminder_enabled = ?, reminder_time = ?,
+      `UPDATE boards SET name = ?, icon = ?, color = ?, layout = ?, track_amounts = ?, unit = ?, use_default_amount = ?, default_amount = ?, reminder_enabled = ?, reminder_time = ?,
         archived = ?, updated_at = ?, pending_sync = 1
        WHERE id = ?`,
       row.name,
       row.icon,
       row.color,
+      row.layout,
       row.track_amounts,
       row.unit,
       row.use_default_amount,
@@ -220,13 +226,14 @@ export const boardsRepo = {
     }
     await db.runAsync(
       `INSERT INTO boards
-        (id, user_id, name, icon, color, track_amounts, unit, use_default_amount, default_amount, reminder_enabled, reminder_time, archived, created_at, updated_at, pending_sync, pending_delete)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0)
+        (id, user_id, name, icon, color, layout, track_amounts, unit, use_default_amount, default_amount, reminder_enabled, reminder_time, archived, created_at, updated_at, pending_sync, pending_delete)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0)
        ON CONFLICT(id) DO UPDATE SET
         user_id = excluded.user_id,
         name = excluded.name,
         icon = excluded.icon,
         color = excluded.color,
+        layout = excluded.layout,
         track_amounts = excluded.track_amounts,
         unit = excluded.unit,
         use_default_amount = excluded.use_default_amount,
@@ -243,6 +250,7 @@ export const boardsRepo = {
       cloud.name,
       cloud.icon,
       cloud.color,
+      cloud.layout,
       cloud.track_amounts,
       cloud.unit,
       cloud.use_default_amount,

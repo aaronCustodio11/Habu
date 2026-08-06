@@ -7,6 +7,8 @@ import { useBoards } from '@/hooks/useBoards';
 import { useCompletions } from '@/hooks/useCompletions';
 import { useTheme } from '@/hooks/useTheme';
 import { HeatmapGrid } from '@/components/heatmap/HeatmapGrid';
+import { PillGrid } from '@/components/layouts/PillGrid';
+import { ProgressRing } from '@/components/layouts/ProgressRing';
 import { WidgetRenderer } from '@/components/stats/WidgetRenderer';
 import { BackButton } from '@/components/ui/BackButton';
 import { widgetConfigsRepo } from '@/lib/db/repositories/widgetConfigsRepo';
@@ -94,8 +96,16 @@ export default function BoardDetailScreen() {
 
       {!loading ? (
         <View style={{ backgroundColor: colors.bgSurface, borderRadius: 16, padding: spacing.md, alignItems: 'center', gap: spacing.sm }}>
-          <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Last 26 weeks</Text>
-          <HeatmapGrid color={board.color} completedDates={dates} weeks={26} showDayLabels />
+          <Text style={{ color: colors.textSecondary, fontSize: 13 }}>
+            {board.layout === 'pill' ? 'Last 30 days' : board.layout === 'ring' ? 'Last 30 days' : 'Last 26 weeks'}
+          </Text>
+          {board.layout === 'pill' ? (
+            <PillGrid color={board.color} completedDates={dates} days={30} />
+          ) : board.layout === 'ring' ? (
+            <ProgressRing color={board.color} completedDates={dates} days={30} />
+          ) : (
+            <HeatmapGrid color={board.color} completedDates={dates} weeks={26} showDayLabels />
+          )}
         </View>
       ) : null}
 
