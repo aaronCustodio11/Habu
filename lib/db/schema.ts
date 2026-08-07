@@ -3,7 +3,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 export const DATABASE_NAME = 'habu.db';
 
 /** Bump this whenever a migration below is added. */
-export const DATABASE_VERSION = 3;
+export const DATABASE_VERSION = 5;
 
 const CREATE_TABLES = `
 CREATE TABLE IF NOT EXISTS boards (
@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS boards (
   unit TEXT NOT NULL DEFAULT 'count',
   use_default_amount INTEGER NOT NULL DEFAULT 0,
   default_amount REAL,
+  daily_target_amount REAL,
+  allow_exceeding INTEGER NOT NULL DEFAULT 0,
   reminder_enabled INTEGER NOT NULL DEFAULT 0,
   reminder_time TEXT,
   archived INTEGER NOT NULL DEFAULT 0,
@@ -89,6 +91,16 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase): Promise<void> {
   // v2 → v3: board visualization layout.
   if (currentVersion === 2) {
     await db.execAsync(`ALTER TABLE boards ADD COLUMN layout TEXT NOT NULL DEFAULT 'heatmap';`);
+  }
+
+  // v3 → v4: daily target amount on boards (goal).
+  if (currentVersion === 3) {
+    await db.execAsync(`ALTER TABLE boards ADD COLUMN daily_target_amount REAL;`);
+  }
+
+  // v4 → v5: allow exceeding the daily target.
+  if (currentVersion === 4) {
+    await db.execAsync(`ALTER TABLE boards ADD COLUMN allow_exceeding INTEGER NOT NULL DEFAULT 0;`);
   }
 
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION};`);

@@ -12,6 +12,8 @@ create table if not exists public.boards (
   unit text not null default 'count',
   use_default_amount boolean not null default false,
   default_amount double precision,
+  daily_target_amount double precision,
+  allow_exceeding boolean not null default false,
   reminder_enabled boolean not null default false,
   reminder_time text,
   archived boolean not null default false,
@@ -24,6 +26,12 @@ alter table public.boards add column if not exists track_amounts boolean not nul
 alter table public.boards add column if not exists unit text not null default 'count';
 alter table public.boards add column if not exists use_default_amount boolean not null default false;
 alter table public.boards add column if not exists default_amount double precision;
+
+-- Daily target amount (goal) for boards.
+alter table public.boards add column if not exists daily_target_amount double precision;
+
+-- Whether logged amounts may exceed the daily target.
+alter table public.boards add column if not exists allow_exceeding boolean not null default false;
 
 -- Board visualization layout (v3). Defaults to the classic heatmap.
 alter table public.boards add column if not exists layout text not null default 'heatmap';

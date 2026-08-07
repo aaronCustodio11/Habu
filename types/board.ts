@@ -17,6 +17,10 @@ export interface Board {
   useDefaultAmount: boolean;
   /** Default amount applied to a check-in when `useDefaultAmount` is on. */
   defaultAmount: number | null;
+  /** Daily target amount shown to the user as a goal. */
+  dailyTargetAmount: number | null;
+  /** When true logged amounts may go above the daily target. */
+  allowExceeding: boolean;
   reminderEnabled: boolean;
   reminderTime: string | null;
   archived: boolean;
@@ -34,6 +38,8 @@ export type BoardDraft = {
   unit: string;
   useDefaultAmount: boolean;
   defaultAmount: number | null;
+  dailyTargetAmount: number | null;
+  allowExceeding: boolean;
   reminderEnabled: boolean;
   reminderTime: string | null;
 };

@@ -18,6 +18,8 @@ export type BoardRow = {
   unit: string;
   use_default_amount: boolean;
   default_amount: number | null;
+  daily_target_amount: number | null;
+  allow_exceeding: boolean;
   reminder_enabled: boolean;
   reminder_time: string | null;
   archived: boolean;
@@ -36,6 +38,8 @@ export type BoardInsert = {
   unit?: string;
   use_default_amount?: boolean;
   default_amount?: number | null;
+  daily_target_amount?: number | null;
+  allow_exceeding?: boolean;
   reminder_enabled?: boolean;
   reminder_time?: string | null;
   archived?: boolean;

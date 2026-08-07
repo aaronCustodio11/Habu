@@ -1,7 +1,7 @@
 import { View, Text } from 'react-native';
 import { useTheme } from '@/hooks/useTheme';
 import { radius, spacing } from '@/constants/Colors';
-import { HeatmapGrid } from '@/components/heatmap/HeatmapGrid';
+import { HeatmapGrid } from '@/components/layouts/HeatmapGrid';
 import type { Board } from '@/types/board';
 
 export interface HeatmapWidgetProps {

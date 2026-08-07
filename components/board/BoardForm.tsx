@@ -7,10 +7,11 @@ import { TextField } from '@/components/ui/TextField';
 import { Button } from '@/components/ui/Button';
 import { ColorPicker } from '@/components/board/ColorPicker';
 import { AmountStepper } from '@/components/board/AmountStepper';
-import { HeatmapGrid } from '@/components/heatmap/HeatmapGrid';
+import { AmountPreview } from '@/components/board/AmountPreview';
+import { HeatmapGrid } from '@/components/layouts/HeatmapGrid';
 import { LayoutPicker } from '@/components/layouts/LayoutPicker';
 import { PillGrid } from '@/components/layouts/PillGrid';
-import { ProgressRing } from '@/components/layouts/ProgressRing';
+import { RingGrid } from '@/components/layouts/RingGrid';
 import { getBoardIcon } from '@/constants/Icons';
 import { getUnitLabel } from '@/constants/Units';
 import type { BoardLayout } from '@/constants/BoardLayouts';
@@ -38,8 +39,9 @@ export function BoardForm({ initial, submitLabel, onSubmit, submitRef }: BoardFo
   const [layout, setLayout] = useState<BoardLayout>(initial?.layout ?? 'heatmap');
   const [trackAmounts, setTrackAmounts] = useState(initial?.trackAmounts ?? false);
   const [unit, setUnit] = useState(initial?.unit ?? 'count');
-  const [useDefaultAmount, setUseDefaultAmount] = useState(initial?.useDefaultAmount ?? false);
   const [defaultAmount, setDefaultAmount] = useState(initial?.defaultAmount ?? 1);
+  const [dailyTarget, setDailyTarget] = useState(initial?.dailyTargetAmount ?? 1);
+  const [allowExceeding, setAllowExceeding] = useState(initial?.allowExceeding ?? false);
   const [reminderEnabled, setReminderEnabled] = useState(initial?.reminderEnabled ?? false);
   const [reminderTime, setReminderTime] = useState(initial?.reminderTime ?? '18:00');
   const [error, setError] = useState<string | null>(null);
@@ -48,6 +50,14 @@ export function BoardForm({ initial, submitLabel, onSubmit, submitRef }: BoardFo
   // can't both pass a fast double-tap before React re-renders → no duplicate
   // board creation / duplicate router.back().
   const submittingRef = useRef(false);
+
+  // When exceeding is disallowed, clamp Amount Per Log to the Daily Target so
+  // the persisted value and the stepper can never disagree with the rule.
+  useEffect(() => {
+    if (!allowExceeding && defaultAmount > dailyTarget) {
+      setDefaultAmount(dailyTarget);
+    }
+  }, [allowExceeding, dailyTarget, defaultAmount]);
 
   // Pick up the icon chosen in the pick-icon modal and clear the handoff.
   useEffect(() => {
@@ -75,6 +85,14 @@ export function BoardForm({ initial, submitLabel, onSubmit, submitRef }: BoardFo
       setError('Give your board a name.');
       return;
     }
+    if (
+      trackAmounts &&
+      !allowExceeding &&
+      defaultAmount > dailyTarget
+    ) {
+      setError("Amount per log can't be above your Daily Target Amount.");
+      return;
+    }
     setError(null);
     submittingRef.current = true;
     setSubmitting(true);
@@ -86,8 +104,10 @@ export function BoardForm({ initial, submitLabel, onSubmit, submitRef }: BoardFo
         layout,
         trackAmounts,
         unit: trackAmounts ? unit : 'count',
-        useDefaultAmount: trackAmounts && useDefaultAmount,
-        defaultAmount: trackAmounts && useDefaultAmount ? defaultAmount : null,
+        useDefaultAmount: trackAmounts,
+        defaultAmount: trackAmounts ? defaultAmount : null,
+        dailyTargetAmount: trackAmounts ? dailyTarget : null,
+        allowExceeding,
         reminderEnabled,
         reminderTime: reminderEnabled ? reminderTime : null,
       });
@@ -161,9 +181,9 @@ export function BoardForm({ initial, submitLabel, onSubmit, submitRef }: BoardFo
               borderColor: colors.borderSubtle,
             }}
           >
-            <MaterialCommunityIcons name={iconGlyph} size={22} color={colors.textPrimary} />
+            <MaterialCommunityIcons name={iconGlyph} size={22} color={color} />
           </Pressable>
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: 1, minWidth: 0 }}>
             <TextField
               variant="flat"
               placeholder="Enter Board Name"
@@ -173,16 +193,15 @@ export function BoardForm({ initial, submitLabel, onSubmit, submitRef }: BoardFo
               style={{ textAlign: 'left' }}
             />
           </View>
+          {layout === 'pill' ? <PillGrid color={color} cellSize={12} gap={3} /> : null}
         </View>
-        {layout === 'pill' ? (
-          <PillGrid color={color} days={30} />
-        ) : layout === 'ring' ? (
+        {layout === 'ring' ? (
           <View style={{ alignItems: 'center' }}>
-            <ProgressRing color={color} days={30} />
+            <RingGrid color={color} gap={3} />
           </View>
-        ) : (
+        ) : layout === 'heatmap' ? (
           <HeatmapGrid color={color} weeks={15} cellSize={16} gap={4} showDayLabels />
-        )}
+        ) : null}
       </View>
 
       <View style={{ gap: spacing.sm }}>
@@ -195,47 +214,85 @@ export function BoardForm({ initial, submitLabel, onSubmit, submitRef }: BoardFo
         <ColorPicker value={color} onChange={setColor} />
       </View>
 
-      {toggleRow(
-        'Track Amounts',
-        'Record a number with each check-in, like minutes or distance.',
-        trackAmounts,
-        setTrackAmounts,
-      )}
+      <View
+        style={{
+          backgroundColor: colors.bgSurface,
+          borderRadius: radius.md,
+          overflow: 'hidden',
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: colors.textPrimary, fontSize: 17 }}>Track Amounts</Text>
+            <Text style={{ color: colors.textTertiary, fontSize: 13 }}>
+              Record a number with each check-in, like minutes or distance.
+            </Text>
+          </View>
+          <Switch
+            value={trackAmounts}
+            onValueChange={setTrackAmounts}
+            trackColor={{ true: colors.textPrimary, false: colors.borderSubtle }}
+            thumbColor={colors.bgSurfaceRaised}
+          />
+        </View>
+
+        {trackAmounts ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Choose a unit"
+            onPress={() => router.push({ pathname: '/modal/pick-unit', params: { current: unit } })}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: spacing.sm,
+              padding: spacing.md,
+              borderTopWidth: 1,
+              borderTopColor: colors.borderSubtle,
+            }}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.textPrimary, fontSize: 17 }}>Unit Type</Text>
+              <Text style={{ color: colors.textTertiary, fontSize: 13 }}>{getUnitLabel(unit)}</Text>
+            </View>
+            <MaterialCommunityIcons name="chevron-right" size={22} color={colors.textTertiary} />
+          </Pressable>
+        ) : null}
+      </View>
 
       {trackAmounts ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Choose a unit"
-          onPress={() => router.push({ pathname: '/modal/pick-unit', params: { current: unit } })}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: spacing.sm,
-            backgroundColor: colors.bgSurface,
-            borderRadius: radius.md,
-            padding: spacing.md,
-          }}
-        >
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: colors.textPrimary, fontSize: 17 }}>Unit</Text>
-            <Text style={{ color: colors.textTertiary, fontSize: 13 }}>{getUnitLabel(unit)}</Text>
-          </View>
-          <MaterialCommunityIcons name="chevron-right" size={22} color={colors.textTertiary} />
-        </Pressable>
-      ) : null}
+        <>
+          <AmountPreview
+            color={color}
+            layout={layout}
+            amountPerLog={defaultAmount}
+            dailyTarget={dailyTarget}
+            allowExceeding={allowExceeding}
+          />
 
-      {toggleRow(
-        'Use Default Amount',
-        'Pre-fill every check-in with a set amount.',
-        useDefaultAmount,
-        setUseDefaultAmount,
-      )}
+          <AmountStepper
+            value={allowExceeding ? defaultAmount : Math.min(defaultAmount, dailyTarget)}
+            min={1}
+            max={allowExceeding ? undefined : dailyTarget}
+            title="Amount Per Log"
+            helper="Added each time you log"
+            onChange={setDefaultAmount}
+          />
 
-      {useDefaultAmount ? (
-        <View style={{ gap: spacing.sm }}>
-          <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Default amount</Text>
-          <AmountStepper value={defaultAmount} min={1} onChange={setDefaultAmount} />
-        </View>
+          <AmountStepper
+            value={dailyTarget}
+            min={1}
+            title="Daily Target Amount"
+            helper="Used to track your progress"
+            onChange={setDailyTarget}
+          />
+
+          {toggleRow(
+            'Allow Exceeding',
+            'Let logged amounts go above the daily target.',
+            allowExceeding,
+            setAllowExceeding,
+          )}
+        </>
       ) : null}
 
       {toggleRow(

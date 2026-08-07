@@ -31,6 +31,7 @@ function toServerBoard(row: BoardLocalRow) {
     layout: server.layout as BoardRow['layout'],
     track_amounts: row.track_amounts === 1,
     use_default_amount: row.use_default_amount === 1,
+    allow_exceeding: row.allow_exceeding === 1,
     reminder_enabled: row.reminder_enabled === 1,
     archived: row.archived === 1,
   };
@@ -117,6 +118,7 @@ export async function syncNow(userId: string): Promise<SyncResult> {
         ...row,
         track_amounts: row.track_amounts ? 1 : 0,
         use_default_amount: row.use_default_amount ? 1 : 0,
+        allow_exceeding: row.allow_exceeding ? 1 : 0,
         reminder_enabled: row.reminder_enabled ? 1 : 0,
         archived: row.archived ? 1 : 0,
       });
