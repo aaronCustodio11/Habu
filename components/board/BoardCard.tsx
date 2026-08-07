@@ -3,7 +3,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
 import { getBoardIcon } from '@/constants/Icons';
 import { radius, spacing } from '@/constants/Colors';
-import { HeatmapGrid } from '@/components/heatmap/HeatmapGrid';
+import { HeatmapGrid } from '@/components/layouts/HeatmapGrid';
 import type { Board } from '@/types/board';
 
 export interface BoardCardProps {

@@ -6,9 +6,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { useBoards } from '@/hooks/useBoards';
 import { useCompletions } from '@/hooks/useCompletions';
 import { useTheme } from '@/hooks/useTheme';
-import { HeatmapGrid } from '@/components/heatmap/HeatmapGrid';
+import { HeatmapGrid } from '@/components/layouts/HeatmapGrid';
 import { PillGrid } from '@/components/layouts/PillGrid';
-import { ProgressRing } from '@/components/layouts/ProgressRing';
+import { RingGrid } from '@/components/layouts/RingGrid';
 import { WidgetRenderer } from '@/components/stats/WidgetRenderer';
 import { BackButton } from '@/components/ui/BackButton';
 import { widgetConfigsRepo } from '@/lib/db/repositories/widgetConfigsRepo';
@@ -102,7 +102,7 @@ export default function BoardDetailScreen() {
           {board.layout === 'pill' ? (
             <PillGrid color={board.color} completedDates={dates} days={30} />
           ) : board.layout === 'ring' ? (
-            <ProgressRing color={board.color} completedDates={dates} days={30} />
+            <RingGrid color={board.color} completedDates={dates} weeks={5} />
           ) : (
             <HeatmapGrid color={board.color} completedDates={dates} weeks={26} showDayLabels />
           )}

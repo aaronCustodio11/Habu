@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
@@ -8,16 +8,39 @@ export interface AmountStepperProps {
   value: number;
   /** Minimum allowed value. Stepping below it is clamped; input is clamped on blur. */
   min?: number;
+  /** Maximum allowed value (e.g. a daily cap). When set, the +/input can't go above it. */
+  max?: number;
   step?: number;
+  /** Optional label rendered inside the card above the stepper. */
+  title?: string;
+  /** Optional helper text rendered under the label. */
+  helper?: string;
   onChange: (value: number) => void;
 }
 
 /** Compact -/+ stepper with a typeable numeric field (default-amount selector). */
-export function AmountStepper({ value, min = 0, step = 1, onChange }: AmountStepperProps) {
+export function AmountStepper({
+  value,
+  min = 0,
+  max,
+  step = 1,
+  title,
+  helper,
+  onChange,
+}: AmountStepperProps) {
   const { colors } = useTheme();
   const [draft, setDraft] = useState(String(value));
 
-  const clamp = (n: number) => (Number.isFinite(n) && n >= min ? n : min);
+  const clamp = (n: number) => {
+    let next = Number.isFinite(n) ? n : min;
+    if (next < min) next = min;
+    if (max !== undefined && next > max) next = max;
+    return next;
+  };
+
+  useEffect(() => {
+    setDraft(String(value));
+  }, [value]);
 
   const commit = (raw: string) => {
     const n = parseFloat(raw.replace(',', '.'));
@@ -33,7 +56,8 @@ export function AmountStepper({ value, min = 0, step = 1, onChange }: AmountStep
   };
 
   const stepButton = (dir: -1 | 1) => {
-    const disabled = dir < 0 && value <= min;
+    const disabled =
+      (dir < 0 && value <= min) || (dir > 0 && max !== undefined && value >= max);
     return (
       <Pressable
         accessibilityRole="button"
@@ -58,33 +82,39 @@ export function AmountStepper({ value, min = 0, step = 1, onChange }: AmountStep
   return (
     <View
       style={{
-        flexDirection: 'row',
-        alignItems: 'center',
         gap: spacing.sm,
         backgroundColor: colors.bgSurface,
         borderRadius: radius.md,
-        padding: spacing.sm,
+        padding: spacing.md,
       }}
     >
-      {stepButton(-1)}
-      <TextInput
-        accessibilityLabel="Default amount"
-        value={draft}
-        onChangeText={setDraft}
-        onBlur={() => commit(draft)}
-        onSubmitEditing={() => commit(draft)}
-        keyboardType="decimal-pad"
-        selectTextOnFocus
-        style={{
-          flex: 1,
-          minHeight: 44,
-          textAlign: 'center',
-          color: colors.textPrimary,
-          fontSize: 17,
-          fontWeight: '600',
-        }}
-      />
-      {stepButton(1)}
+      {title ? (
+        <Text style={{ color: colors.textPrimary, fontSize: 17 }}>{title}</Text>
+      ) : null}
+      {helper ? (
+        <Text style={{ color: colors.textTertiary, fontSize: 13 }}>{helper}</Text>
+      ) : null}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+        {stepButton(-1)}
+        <TextInput
+          accessibilityLabel="Amount"
+          value={draft}
+          onChangeText={setDraft}
+          onBlur={() => commit(draft)}
+          onSubmitEditing={() => commit(draft)}
+          keyboardType="decimal-pad"
+          selectTextOnFocus
+          style={{
+            flex: 1,
+            minHeight: 44,
+            textAlign: 'center',
+            color: colors.textPrimary,
+            fontSize: 17,
+            fontWeight: '600',
+          }}
+        />
+        {stepButton(1)}
+      </View>
     </View>
   );
 }

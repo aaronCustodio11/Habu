@@ -32,7 +32,7 @@ export function IconPicker({ value, color, onChange }: IconPickerProps) {
                 borderRadius: radius.sm,
                 alignItems: 'center',
                 justifyContent: 'center',
-                backgroundColor: selected ? color : colors.bgBase,
+                backgroundColor: colors.bgBase,
                 borderWidth: 1,
                 borderColor: selected ? color : colors.borderSubtle,
               },
@@ -42,7 +42,7 @@ export function IconPicker({ value, color, onChange }: IconPickerProps) {
             <MaterialCommunityIcons
               name={option.icon as BoardIconName}
               size={24}
-              color={selected ? '#FFFFFF' : colors.textSecondary}
+              color={selected ? color : colors.textSecondary}
             />
           </Pressable>
         );
