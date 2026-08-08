@@ -25,10 +25,14 @@ export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps)
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
 
-  // Create Board is a full-screen pushed route (not a sheet), so the floating
-  // nav bar stays hidden while it's open — the back affordance in the screen
-  // header is the way out.
-  if (pathname === '/boards/create') return null;
+  // Full-screen pushed routes (board creation, icon picking) are not sheets, so
+  // the floating nav bar stays hidden while they're open — the back affordance
+  // in the screen header is the way out.
+  if (
+    pathname === '/boards/create' ||
+    pathname === '/boards/pick-icon' ||
+    pathname === '/boards/pick-unit'
+  ) return null;
 
   const items: FloatingNavItem[] = state.routes.map((route) => {
     const descriptor = descriptors[route.key];
