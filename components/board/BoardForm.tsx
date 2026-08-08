@@ -13,7 +13,7 @@ import { LayoutPicker } from '@/components/layouts/LayoutPicker';
 import { PillGrid } from '@/components/layouts/PillGrid';
 import { RingGrid } from '@/components/layouts/RingGrid';
 import { getBoardIcon } from '@/constants/Icons';
-import { getUnitLabel } from '@/constants/Units';
+import { getUnitAbbr, getUnitLabel } from '@/constants/Units';
 import type { BoardLayout } from '@/constants/BoardLayouts';
 import { iconPickStore } from '@/store/iconPickStore';
 import { unitPickStore } from '@/store/unitPickStore';
@@ -69,7 +69,7 @@ export function BoardForm({ initial, submitLabel, onSubmit, submitRef }: BoardFo
     });
   }, []);
 
-  // Pick up the unit chosen in the pick-unit modal and clear the handoff.
+  // Pick up the unit chosen in the pick-unit screen and clear the handoff.
   useEffect(() => {
     return unitPickStore.subscribe((state) => {
       if (state.picked) {
@@ -168,7 +168,7 @@ export function BoardForm({ initial, submitLabel, onSubmit, submitRef }: BoardFo
             accessibilityRole="button"
             accessibilityLabel="Choose an icon"
             onPress={() =>
-              router.push({ pathname: '/modal/pick-icon', params: { current: icon, color } })
+              router.push({ pathname: '/boards/pick-icon', params: { current: icon, color } })
             }
             style={{
               width: 44,
@@ -206,7 +206,7 @@ export function BoardForm({ initial, submitLabel, onSubmit, submitRef }: BoardFo
 
       <View style={{ gap: spacing.sm }}>
         <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Layout</Text>
-        <LayoutPicker value={layout} onChange={setLayout} />
+        <LayoutPicker value={layout} color={color} onChange={setLayout} />
       </View>
 
       <View style={{ gap: spacing.sm }}>
@@ -240,7 +240,7 @@ export function BoardForm({ initial, submitLabel, onSubmit, submitRef }: BoardFo
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Choose a unit"
-            onPress={() => router.push({ pathname: '/modal/pick-unit', params: { current: unit } })}
+            onPress={() => router.push({ pathname: '/boards/pick-unit', params: { current: unit } })}
             style={{
               flexDirection: 'row',
               alignItems: 'center',
@@ -252,7 +252,10 @@ export function BoardForm({ initial, submitLabel, onSubmit, submitRef }: BoardFo
           >
             <View style={{ flex: 1 }}>
               <Text style={{ color: colors.textPrimary, fontSize: 17 }}>Unit Type</Text>
-              <Text style={{ color: colors.textTertiary, fontSize: 13 }}>{getUnitLabel(unit)}</Text>
+              <Text style={{ color: colors.textTertiary, fontSize: 13 }}>
+                {getUnitLabel(unit)}
+                {getUnitAbbr(unit) ? ` (${getUnitAbbr(unit)})` : ''}
+              </Text>
             </View>
             <MaterialCommunityIcons name="chevron-right" size={22} color={colors.textTertiary} />
           </Pressable>

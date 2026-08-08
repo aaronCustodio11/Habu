@@ -74,14 +74,6 @@ export default function RootLayout() {
             name="modal/customize-home-stats"
             options={{ presentation: 'modal', headerShown: false }}
           />
-          <Stack.Screen
-            name="modal/pick-icon"
-            options={{ presentation: 'modal', headerShown: false }}
-          />
-          <Stack.Screen
-            name="modal/pick-unit"
-            options={{ presentation: 'modal', headerShown: false }}
-          />
         </Stack.Protected>
         <Stack.Screen name="index" />
       </Stack>
