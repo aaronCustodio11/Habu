@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import Info from 'lucide-react-native/icons/info';
+import Pointer from 'lucide-react-native/icons/pointer';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/hooks/useTheme';
 import { radius, spacing } from '@/constants/Colors';
@@ -79,12 +80,12 @@ export function HoldButton({ label, hint, onComplete, disabled = false }: HoldBu
           style={[styles.fill, { backgroundColor: colors.bgBase, opacity: 0.14, width: fillWidth }]}
         />
         <View style={styles.labelRow}>
-          <MaterialCommunityIcons name="gesture-tap-hold" size={18} color={colors.bgBase} />
+          <Pointer size={18} color={colors.bgBase} />
           <Text style={[styles.label, { color: colors.bgBase }]}>{label}</Text>
         </View>
       </Pressable>
       <View style={styles.hintRow}>
-        <MaterialCommunityIcons name="information-outline" size={14} color={colors.textTertiary} />
+        <Info size={14} color={colors.textTertiary} />
         <Text style={[styles.hint, { color: colors.textSecondary }]}>{hint}</Text>
       </View>
     </View>

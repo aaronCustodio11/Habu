@@ -10,31 +10,31 @@ export const WIDGET_TYPES = [
   {
     key: 'heatmap',
     label: 'Heatmap',
-    icon: 'calendar-blank',
+    icon: 'Calendar',
     description: 'Your completion history at a glance',
   },
   {
     key: 'streak_counter',
     label: 'Streak Counter',
-    icon: 'fire',
+    icon: 'Flame',
     description: 'How many days in a row you have kept up',
   },
   {
     key: 'weekly_bar_chart',
     label: 'Weekly Bar Chart',
-    icon: 'chart-bar',
+    icon: 'ChartColumn',
     description: 'Completions per day for the last week',
   },
   {
     key: 'monthly_completion_pct',
     label: 'Monthly Completion %',
-    icon: 'percent',
+    icon: 'Percent',
     description: 'Share of the month completed so far',
   },
   {
     key: 'best_streak_badge',
     label: 'Best Streak',
-    icon: 'trophy',
+    icon: 'Trophy',
     description: 'Your longest streak ever',
   },
 ] as const;

@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import SearchX from 'lucide-react-native/icons/search-x';
 import { useTheme } from '@/hooks/useTheme';
 import { UnitPicker } from '@/components/board/UnitPicker';
 import { TextField } from '@/components/ui/TextField';
@@ -62,6 +62,20 @@ export default function PickUnitScreen() {
   const [query, setQuery] = useState('');
   const [selection, setSelection] = useState(current);
 
+  const navigation = useNavigation();
+  // Keep the latest highlight in a ref so the removal listener always sees it.
+  const selectionRef = useRef(selection);
+  selectionRef.current = selection;
+
+  // Commit the highlighted unit whenever this screen goes away — confirm check,
+  // back swipe, or back button — so the board form never silently keeps the
+  // previous unit.
+  useEffect(() => {
+    return navigation.addListener('beforeRemove', () => {
+      unitPickStore.getState().setPicked(selectionRef.current);
+    });
+  }, [navigation]);
+
   const options = useMemo(() => {
     const trimmed = query.trim();
     if (!trimmed) return BOARD_UNITS;
@@ -98,7 +112,7 @@ export default function PickUnitScreen() {
 
         <TextField
           placeholder="Search units"
-          icon="magnify"
+          icon="Search"
           iconPosition="left"
           value={query}
           onChangeText={setQuery}
@@ -108,7 +122,7 @@ export default function PickUnitScreen() {
 
       {options.length === 0 ? (
         <View style={styles.empty}>
-          <MaterialCommunityIcons name="magnify-close" size={44} color={colors.textTertiary} />
+          <SearchX size={44} color={colors.textTertiary} />
           <Text style={{ color: colors.textSecondary, fontSize: 15 }}>No units match “{query.trim()}”.</Text>
         </View>
       ) : (

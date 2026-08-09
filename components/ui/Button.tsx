@@ -21,7 +21,7 @@ export function Button({ label, variant = 'primary', style, labelStyle, disabled
   const fill: Record<Variant, ViewStyle> = {
     primary: { backgroundColor: colors.textPrimary },
     secondary: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.borderSubtle },
-    destructive: { backgroundColor: colors.textPrimary },
+    destructive: { backgroundColor: colors.danger },
     ghost: { backgroundColor: 'transparent' },
   };
 

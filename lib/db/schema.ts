@@ -3,7 +3,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 export const DATABASE_NAME = 'habu.db';
 
 /** Bump this whenever a migration below is added. */
-export const DATABASE_VERSION = 5;
+export const DATABASE_VERSION = 6;
 
 const CREATE_TABLES = `
 CREATE TABLE IF NOT EXISTS boards (
@@ -25,7 +25,9 @@ CREATE TABLE IF NOT EXISTS boards (
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   pending_sync INTEGER NOT NULL DEFAULT 1,
-  pending_delete INTEGER NOT NULL DEFAULT 0
+  pending_delete INTEGER NOT NULL DEFAULT 0,
+  server_exists INTEGER NOT NULL DEFAULT 0,
+  pending_changes TEXT
 );
 
 CREATE TABLE IF NOT EXISTS completions (
@@ -101,6 +103,15 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase): Promise<void> {
   // v4 → v5: allow exceeding the daily target.
   if (currentVersion === 4) {
     await db.execAsync(`ALTER TABLE boards ADD COLUMN allow_exceeding INTEGER NOT NULL DEFAULT 0;`);
+  }
+
+  // v5 → v6: field-level sync. `server_exists` tells the sync engine whether a
+  // dirty board needs a full INSERT (never pushed) or a partial PATCH (already
+  // on the cloud). `pending_changes` is a JSON array of the columns that differ
+  // from the cloud, accumulated across edits so offline bursts are not lost.
+  if (currentVersion === 5) {
+    await db.execAsync(`ALTER TABLE boards ADD COLUMN server_exists INTEGER NOT NULL DEFAULT 0;`);
+    await db.execAsync(`ALTER TABLE boards ADD COLUMN pending_changes TEXT;`);
   }
 
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION};`);

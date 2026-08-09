@@ -55,7 +55,9 @@ export default function CreateBoardScreen() {
             submitLabel="Create Board"
             onSubmit={async (draft) => {
               await createBoard(draft);
-              router.back();
+              // Always land on the Boards list (the 2nd floating-nav item),
+              // regardless of where creation was launched from.
+              router.dismissTo('/boards');
             }}
           />
         </ScrollView>

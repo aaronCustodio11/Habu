@@ -1,7 +1,8 @@
 import { Pressable, Text, View, type StyleProp, type ViewStyle } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import Check from 'lucide-react-native/icons/check';
 import { useTheme } from '@/hooks/useTheme';
 import { getBoardIcon } from '@/constants/Icons';
+import { LucideIcon } from '@/components/ui/LucideIcon';
 import { radius, spacing } from '@/constants/Colors';
 import { HeatmapGrid } from '@/components/layouts/HeatmapGrid';
 import type { Board } from '@/types/board';
@@ -60,7 +61,7 @@ export function BoardCard({
           justifyContent: 'center',
         }}
       >
-        <MaterialCommunityIcons name={icon.icon} size={22} color="#FFFFFF" />
+        <LucideIcon name={icon.icon} size={22} color="#FFFFFF" />
       </View>
 
       <View style={{ flex: 1, gap: 4 }}>
@@ -75,7 +76,16 @@ export function BoardCard({
           {board.name}
         </Text>
         {hasDates && completedDates ? (
-          <HeatmapGrid color={board.color} completedDates={completedDates} weeks={9} cellSize={6} gap={2} />
+          <HeatmapGrid
+            color={board.color}
+            completedDates={completedDates}
+            weeks={9}
+            cellSize={6}
+            gap={2}
+            amountPerLog={board.defaultAmount}
+            dailyTarget={board.dailyTargetAmount}
+            allowExceeding={board.allowExceeding}
+          />
         ) : (
           <Text style={{ color: colors.textTertiary, fontSize: 13 }}>
             {board.reminderEnabled && board.reminderTime
@@ -99,7 +109,7 @@ export function BoardCard({
         }}
       >
         {isCheckedInToday ? (
-          <MaterialCommunityIcons name="check" size={18} color={colors.bgBase} />
+          <Check size={18} color={colors.bgBase} strokeWidth={3} />
         ) : null}
       </View>
     </Pressable>

@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import { Pressable, Text, TextInput, View, type TextInputProps } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import CircleAlert from 'lucide-react-native/icons/circle-alert';
+import Eye from 'lucide-react-native/icons/eye';
+import EyeOff from 'lucide-react-native/icons/eye-off';
+
 import { useTheme } from '@/hooks/useTheme';
+import { LucideIcon, type LucideIconName } from '@/components/ui/LucideIcon';
 import { radius, spacing } from '@/constants/Colors';
 
 export interface TextFieldProps extends TextInputProps {
@@ -9,12 +13,12 @@ export interface TextFieldProps extends TextInputProps {
   error?: string;
   /** 'flat' removes the border and sits on a raised surface (for in-card inputs). */
   variant?: 'default' | 'flat';
-  /** Optional icon (MaterialCommunityIcons glyph) beside the input. */
-  icon?: string;
+  /** Optional icon (lucide glyph) beside the input. */
+  icon?: LucideIconName;
   /** Where the trailing/leading icon sits relative to the text. */
   iconPosition?: 'left' | 'right';
   /** Icon rendered inline, right where the placeholder text ends (part of the placeholder). */
-  placeholderIcon?: string;
+  placeholderIcon?: LucideIconName;
 }
 
 /** Solid `bg-surface` input (design doc §7.5). Focus shifts border weight, never color. */
@@ -38,7 +42,7 @@ export function TextField({
 
   const iconNode = icon ? (
     <View style={{ padding: spacing.xs }}>
-      <MaterialCommunityIcons name={icon as never} size={20} color={colors.textTertiary} />
+      <LucideIcon name={icon} size={20} color={colors.textTertiary} />
     </View>
   ) : null;
 
@@ -76,8 +80,8 @@ export function TextField({
             }}
           >
             <Text style={{ color: colors.textTertiary, fontSize: 17 }}>{placeholder}</Text>
-            <MaterialCommunityIcons
-              name={placeholderIcon as never}
+            <LucideIcon
+              name={placeholderIcon}
               size={17}
               color={colors.textTertiary}
             />
@@ -116,17 +120,13 @@ export function TextField({
             onPress={() => setSecure((prev) => !prev)}
             style={{ padding: spacing.xs }}
           >
-            <MaterialCommunityIcons
-              name={secure ? 'eye-outline' : 'eye-off-outline'}
-              size={20}
-              color={colors.textSecondary}
-            />
+            {secure ? <EyeOff size={20} color={colors.textSecondary} /> : <Eye size={20} color={colors.textSecondary} />}
           </Pressable>
         ) : null}
       </View>
       {error ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-          <MaterialCommunityIcons name="alert-circle-outline" size={14} color={colors.textSecondary} />
+          <CircleAlert size={14} color={colors.textSecondary} />
           <Text style={{ color: colors.textSecondary, fontSize: 13, flex: 1 }}>{error}</Text>
         </View>
       ) : null}

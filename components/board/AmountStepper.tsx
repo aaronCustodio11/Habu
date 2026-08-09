@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import Minus from 'lucide-react-native/icons/minus';
+import Plus from 'lucide-react-native/icons/plus';
+
 import { useTheme } from '@/hooks/useTheme';
 import { radius, spacing } from '@/constants/Colors';
 
@@ -74,7 +76,7 @@ export function AmountStepper({
           opacity: disabled ? 0.4 : 1,
         }}
       >
-        <MaterialCommunityIcons name={dir < 0 ? 'minus' : 'plus'} size={22} color={colors.textPrimary} />
+        {dir < 0 ? <Minus size={22} color={colors.textPrimary} /> : <Plus size={22} color={colors.textPrimary} />}
       </Pressable>
     );
   };

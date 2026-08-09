@@ -66,6 +66,12 @@ create index if not exists idx_widget_configs_scope on public.widget_configs (sc
 alter table public.boards enable row level security;
 alter table public.completions enable row level security;
 alter table public.widget_configs enable row level security;
+-- Defense-in-depth: force RLS to also apply to the table owner. App access
+-- flows through anon/authenticated (PostgREST); the SECURITY DEFINER sync
+-- triggers run as postgres (BYPASSRLS), so forcing is purely additive.
+alter table public.boards force row level security;
+alter table public.completions force row level security;
+alter table public.widget_configs force row level security;
 
 -- Idempotent: drop existing policies before recreating (CREATE POLICY has no IF NOT EXISTS).
 drop policy if exists "boards_select_own" on public.boards;
@@ -167,12 +173,18 @@ create trigger on_auth_user_email
 after insert or update or delete on auth.users
 for each row execute function public.sync_user_email();
 
+-- Trigger-only function: never callable by app/client roles. Postgres checks
+-- EXECUTE on trigger functions at trigger creation time only, so the trigger
+-- above keeps firing after the revoke.
+revoke all on function public.sync_user_email() from public, anon, authenticated, service_role;
+
 -- Backfill existing users (idempotent).
 insert into public.user_emails (email, user_id)
 select email, id from auth.users
 on conflict (email) do nothing;
 
 alter table public.user_emails enable row level security;
+alter table public.user_emails force row level security;
 
 create or replace function public.is_email_registered(target text)
 returns boolean
@@ -227,6 +239,9 @@ create trigger on_auth_user_profile
 after insert or update or delete on auth.users
 for each row execute function public.sync_user_profile();
 
+-- Trigger-only function: never callable by app/client roles (see note above).
+revoke all on function public.sync_user_profile() from public, anon, authenticated, service_role;
+
 -- Backfill existing users (idempotent).
 insert into public.profiles (user_id, username)
 select
@@ -236,6 +251,7 @@ from auth.users
 on conflict (user_id) do nothing;
 
 alter table public.profiles enable row level security;
+alter table public.profiles force row level security;
 
 drop policy if exists "profiles_select_own" on public.profiles;
 drop policy if exists "profiles_update_own" on public.profiles;

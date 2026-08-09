@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Animated, BackHandler, StyleSheet, Text, View } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import CircleAlert from 'lucide-react-native/icons/circle-alert';
 import { Stack, router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/hooks/useAuth';
@@ -176,7 +176,7 @@ export default function SignupScreen() {
 
   const errorBox = error ? (
     <View style={[styles.errorBox, { backgroundColor: colors.dangerSurface, borderColor: colors.danger }]}>
-      <MaterialCommunityIcons name="alert-circle-outline" size={16} color={colors.danger} />
+      <CircleAlert size={16} color={colors.danger} />
       <Text style={[styles.errorText, { color: colors.danger }]}>{error}</Text>
     </View>
   ) : null;

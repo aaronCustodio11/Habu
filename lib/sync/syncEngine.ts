@@ -6,6 +6,7 @@ import {
   upsertBoards,
   upsertCompletions,
   upsertWidgetConfigs,
+  updateBoardPatches,
   deleteBoards,
   deleteCompletions,
   deleteWidgetConfigs,
@@ -24,8 +25,15 @@ export interface SyncResult {
   error?: string;
 }
 
-function toServerBoard(row: BoardLocalRow) {
-  const { pending_sync: _p, pending_delete: _d, ...server } = row;
+/** Full cloud row, used to INSERT boards that were never pushed before. */
+function toServerInsertBoard(row: BoardLocalRow) {
+  const {
+    pending_sync: _p,
+    pending_delete: _d,
+    server_exists: _s,
+    pending_changes: _c,
+    ...server
+  } = row;
   return {
     ...server,
     layout: server.layout as BoardRow['layout'],
@@ -35,6 +43,39 @@ function toServerBoard(row: BoardLocalRow) {
     reminder_enabled: row.reminder_enabled === 1,
     archived: row.archived === 1,
   };
+}
+
+/**
+ * PATCH payload for a board already on the cloud: only the columns recorded in
+ * `pending_changes` are sent (plus `updated_at`, which we own). Booleans are
+ * converted to real `true`/`false` for the API.
+ */
+function buildBoardPatch(row: BoardLocalRow): Partial<BoardRow> {
+  const fields: string[] = row.pending_changes ? JSON.parse(row.pending_changes) : [];
+  const patch: Partial<BoardRow> = { updated_at: row.updated_at };
+  for (const field of fields) {
+    switch (field) {
+      case 'track_amounts':
+        patch.track_amounts = row.track_amounts === 1;
+        break;
+      case 'use_default_amount':
+        patch.use_default_amount = row.use_default_amount === 1;
+        break;
+      case 'allow_exceeding':
+        patch.allow_exceeding = row.allow_exceeding === 1;
+        break;
+      case 'reminder_enabled':
+        patch.reminder_enabled = row.reminder_enabled === 1;
+        break;
+      case 'archived':
+        patch.archived = row.archived === 1;
+        break;
+      default:
+        (patch as Record<string, unknown>)[field] = row[field as keyof BoardLocalRow];
+        break;
+    }
+  }
+  return patch;
 }
 
 function toServerCompletion(row: CompletionLocalRow) {
@@ -51,8 +92,23 @@ function toServerWidgetConfig(row: WidgetConfigLocalRow) {
  * One full sync pass for a user: push local changes, then pull the cloud
  * state back and reconcile with last-write-wins merging. Safe to call any
  * time; when offline (or unconfigured) it becomes a no-op returning ok=false.
+ *
+ * Single-flight: concurrent callers (launch hydration, reconnect watcher,
+ * pull-to-refresh, debounced mutation sync) share one in-flight pass instead
+ * of piling up overlapping full pulls that race on `markSynced`.
  */
-export async function syncNow(userId: string): Promise<SyncResult> {
+let syncInFlight: Promise<SyncResult> | null = null;
+
+export function syncNow(userId: string): Promise<SyncResult> {
+  if (syncInFlight) return syncInFlight;
+  const run = doSync(userId);
+  syncInFlight = run;
+  return run.finally(() => {
+    if (syncInFlight === run) syncInFlight = null;
+  });
+}
+
+async function doSync(userId: string): Promise<SyncResult> {
   const result: SyncResult = { ok: false, pushed: 0, deleted: 0, pulled: 0 };
 
   if (!isSupabaseConfigured || !(await isOnline())) {
@@ -97,14 +153,22 @@ export async function syncNow(userId: string): Promise<SyncResult> {
     result.deleted += boardsToDelete.length + completionsToDelete.length + widgetsToDelete.length;
 
     // 2. Push local changes.
-    await upsertBoards(boardsToPush.map(toServerBoard));
+    // Boards: newly-created rows get a full INSERT (batch upsert); rows already
+    // on the cloud get a per-row PATCH of only the columns that changed. Rows
+    // marked dirty without any recorded change need no push at all.
+    const boardsToInsert = boardsToPush.filter((row) => row.server_exists === 0);
+    const boardsToPatch = boardsToPush.filter((row) => row.server_exists === 1 && row.pending_changes);
+    const boardsToSkip = boardsToPush.filter((row) => row.server_exists === 1 && !row.pending_changes);
+
+    await upsertBoards(boardsToInsert.map(toServerInsertBoard));
+    await updateBoardPatches(boardsToPatch.map((row) => ({ id: row.id, patch: buildBoardPatch(row) })));
     await upsertCompletions(completionsToPush.map(toServerCompletion));
     await upsertWidgetConfigs(widgetsToPush.map(toServerWidgetConfig));
 
     await Promise.all(boardsToPush.map((row) => boardsRepo.markSynced(row.id)));
     await Promise.all(completionsToPush.map((row) => completionsRepo.markSynced(row.id)));
     await Promise.all(widgetsToPush.map((row) => widgetConfigsRepo.markSynced(row.id)));
-    result.pushed += boardsToPush.length + completionsToPush.length + widgetsToPush.length;
+    result.pushed += boardsToInsert.length + boardsToPatch.length + completionsToPush.length + widgetsToPush.length;
 
     // 3. Pull the cloud state and reconcile locally.
     const cloudBoards = await fetchBoards(userId);

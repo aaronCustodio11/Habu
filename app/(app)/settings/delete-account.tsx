@@ -45,7 +45,7 @@ export default function DeleteAccountScreen() {
           <Button
             variant="destructive"
             label="Permanently delete everything"
-            disabled={typed.trim() !== 'DELETE'}
+            disabled={typed.trim().toUpperCase() !== 'DELETE'}
             onPress={() => void deleteEverything()}
           />
         </>

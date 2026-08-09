@@ -9,6 +9,7 @@ import {
 import Svg, { Circle } from 'react-native-svg';
 import { useTheme } from '@/hooks/useTheme';
 import { addDays, fromISODate, toISODate, todayISO } from '@/lib/dates';
+import { coverageRatio } from '@/lib/color';
 
 /** Single-letter weekday labels, Sunday-first (pinned header, never scrolls). */
 const WEEKDAY_LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -17,6 +18,13 @@ export interface RingGridProps {
   /** The board's color - the only hue allowed in this grid. */
   color: string;
   completedDates?: Iterable<string>;
+  /**
+   * Amount added per log, paired with `dailyTarget`. When both are set, a
+   * completed ring's progress arc shows `min(amountPerLog / dailyTarget, 1)` at
+   * the full board color (no opacity — the arc length is the progress).
+   */
+  amountPerLog?: number | null;
+  dailyTarget?: number | null;
   /** Number of weeks to render (current week + past). */
   weeks?: number;
   size?: number;
@@ -31,13 +39,17 @@ export interface RingGridProps {
  * horizontally with the newest (current) week on the right, so the user
  * scrolls left to reach past weeks (up to `weeks`).
  *
- * Rings are intentionally empty for now — they will be filled from the
- * database later. Only the current week's ring for today's weekday carries a
- * colored double border so the "now" position stays visible.
+ * Completed days draw a progress arc at the full board color — its length is
+ * `min(amountPerLog / dailyTarget, 1)` (a full circle when no amounts are
+ * configured); there's no opacity fade, the arc is the progress. The rest stay
+ * gray. The current week's ring for today's weekday carries a colored double
+ * border so the "now" position stays visible.
  */
 export function RingGrid({
   color,
   completedDates,
+  amountPerLog,
+  dailyTarget,
   weeks = 5,
   size = 44,
   strokeWidth,
@@ -47,6 +59,17 @@ export function RingGrid({
   const { width } = useWindowDimensions();
   const today = todayISO();
   const todayWeekday = fromISODate(today).getDay();
+
+  const completed = useMemo(() => new Set(completedDates ?? []), [completedDates]);
+
+  // Progress is shown via the arc length, always in the full board color (no
+  // opacity fade). Without amount config the ratio is 1, so a completed ring
+  // fills the whole circle (the pre-amount behavior).
+  const ratio = useMemo(
+    () => coverageRatio(amountPerLog, dailyTarget),
+    [amountPerLog, dailyTarget],
+  );
+  const progressPct = Math.max(0, Math.min(1, ratio));
 
   // Responsive: the ring size is fixed per column (7 fit the viewport width);
   // older weeks overflow and scroll horizontally. 4px are reserved inside the
@@ -148,6 +171,8 @@ export function RingGrid({
         {weeksData.map(({ key, isCurrent }) => (
           <View key={key} style={{ flexDirection: 'row', gap }}>
             {WEEKDAYS.map((weekday) => {
+              const dayDate = addDays(key, weekday);
+              const done = completed.has(dayDate);
               const center = ringSize / 2;
               const isTodayRing = isCurrent && weekday === todayWeekday;
               return (
@@ -175,7 +200,7 @@ export function RingGrid({
                       strokeWidth={ringStroke}
                       strokeLinecap="round"
                       strokeDasharray={`${circumference} ${circumference}`}
-                      strokeDashoffset={circumference}
+                      strokeDashoffset={done ? circumference * (1 - progressPct) : circumference}
                       transform={`rotate(-90 ${center} ${center})`}
                       fill="none"
                     />

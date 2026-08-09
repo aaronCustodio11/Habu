@@ -1,8 +1,11 @@
 export {
   fetchBoards,
+  insertBoard,
   upsertBoards,
+  updateBoardPatches,
   deleteBoards,
   type BoardRow,
+  type BoardInsert,
 } from './boards';
 export {
   fetchCompletions,

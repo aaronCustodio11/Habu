@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { boardsRepo } from '@/lib/db/repositories/boardsRepo';
+import { boardsRepo, buildBoard, toCloudRow } from '@/lib/db/repositories/boardsRepo';
 import { completionsRepo } from '@/lib/db/repositories/completionsRepo';
+import { insertBoard, type BoardRow } from '@/lib/supabase/queries';
+import { isSupabaseConfigured } from '@/lib/supabase/client';
 import { scheduleSync } from '@/lib/sync/syncEngine';
 import { scheduleDailyReminder, cancelDailyReminder } from '@/lib/notifications/scheduler';
 import { ensureNotificationsPermission } from '@/lib/notifications/permissions';
@@ -49,9 +51,9 @@ export function useBoards(userId: string | null): UseBoardsResult {
   const reload = useCallback(async () => {
     if (!userId) {
       setBoards([]);
+      setLoading(false);
       return;
     }
-    setLoading(true);
     const rows = await boardsRepo.getAll(userId);
     setBoards(rows);
     setLoading(false);
@@ -64,6 +66,27 @@ export function useBoards(userId: string | null): UseBoardsResult {
   const createBoard = useCallback(
     async (draft: BoardDraft) => {
       if (!userId) throw new Error('Not signed in.');
+
+      // Cloud is the source of truth for new boards: write to Supabase first.
+      // Offline is not supported — the user gets a clear connection error and
+      // nothing is saved locally. (When Supabase isn't configured at all, e.g.
+      // a local dev build without .env, fall back to the offline path.)
+      if (isSupabaseConfigured) {
+        const board = buildBoard(userId, draft);
+        let inserted: BoardRow;
+        try {
+          inserted = await insertBoard(toCloudRow(board));
+        } catch (error) {
+          console.warn('[boards] create: cloud write failed:', error);
+          throw new Error("We couldn't save your board. Check your internet connection and try again.");
+        }
+        const synced: Board = { ...board, createdAt: inserted.created_at, updatedAt: inserted.updated_at };
+        await boardsRepo.createSynced(synced);
+        await applyReminder(board);
+        await reload();
+        return board;
+      }
+
       const board = await boardsRepo.create(userId, draft);
       await applyReminder(board);
       scheduleSync(userId);

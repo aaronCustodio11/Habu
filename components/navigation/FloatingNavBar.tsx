@@ -1,5 +1,4 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import type { ComponentProps } from 'react';
+import Plus from 'lucide-react-native/icons/plus';
 import { useEffect, useState } from 'react';
 import * as Haptics from 'expo-haptics';
 import {
@@ -7,7 +6,6 @@ import {
   Platform,
   Pressable,
   StyleSheet,
-  Text,
   View,
   type ViewStyle,
 } from 'react-native';
@@ -17,12 +15,13 @@ import {
   isLiquidGlassAvailable,
 } from 'expo-glass-effect';
 import { useTheme } from '@/hooks/useTheme';
+import { LucideIcon, type LucideIconName } from '@/components/ui/LucideIcon';
 import { radius } from '@/constants/Colors';
 
 export interface FloatingNavItem {
   key: string;
   label: string;
-  icon: ComponentProps<typeof MaterialCommunityIcons>['name'];
+  icon: LucideIconName;
 }
 
 export interface FloatingNavBarProps {
@@ -35,8 +34,8 @@ export interface FloatingNavBarProps {
   style?: ViewStyle;
 }
 
-const PILL_HEIGHT = 70;
-const TAB_HEIGHT = 56;
+const PILL_HEIGHT = 60;
+const TAB_HEIGHT = 48;
 const ADD_SIZE = 56;
 
 /**
@@ -128,17 +127,11 @@ export function FloatingNavBar({
               pressed && styles.pressed,
             ]}
           >
-            <MaterialCommunityIcons
+            <LucideIcon
               name={item.icon}
               size={23}
               color={active ? activeTint : colors.textTertiary}
             />
-            <Text
-              style={[styles.label, { color: active ? activeTint : colors.textTertiary }]}
-              numberOfLines={1}
-            >
-              {item.label}
-            </Text>
           </Pressable>
         );
       })}
@@ -186,7 +179,7 @@ export function FloatingNavBar({
         pressed && styles.pressed,
       ]}
     >
-      <MaterialCommunityIcons name="plus" size={26} color={colors.bgBase} />
+      <Plus size={26} color={colors.bgBase} />
     </Pressable>
   ) : null;
 
@@ -229,12 +222,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
-  },
-  label: {
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 0.2,
   },
   addButton: {
     width: ADD_SIZE,

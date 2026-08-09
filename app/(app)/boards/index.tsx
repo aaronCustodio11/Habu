@@ -1,8 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { FlatList, Pressable, Text, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/hooks/useAuth';
 import { useBoards } from '@/hooks/useBoards';
@@ -19,8 +18,16 @@ export default function BoardsListScreen() {
   const insets = useSafeAreaInsets();
   const { contentStyle } = useContentWidth();
   const { userId } = useAuth();
-  const { boards, loading } = useBoards(userId);
+  const { boards, loading, reload } = useBoards(userId);
   const [tab, setTab] = useState<'active' | 'archived'>('active');
+
+  // Re-read from SQLite whenever this screen regains focus, so boards created
+  // or edited on pushed screens (create/edit) show up without a remount.
+  useFocusEffect(
+    useCallback(() => {
+      void reload();
+    }, [reload]),
+  );
 
   const filtered = useMemo(
     () => boards.filter((board) => (tab === 'active' ? !board.archived : board.archived)),
@@ -85,7 +92,7 @@ export default function BoardsListScreen() {
         loading ? null : tab === 'active' ? (
           <View style={[contentStyle, { paddingHorizontal: spacing.lg }]}>
             <EmptyState
-              icon="fire"
+              icon="Flame"
               headline={boards.length > 0 ? 'No active boards' : 'Nothing here yet'}
               body={
                 boards.length > 0
@@ -101,7 +108,7 @@ export default function BoardsListScreen() {
           </View>
         ) : (
           <View style={[contentStyle, { paddingHorizontal: spacing.lg }]}>
-            <EmptyState icon="archive-outline" headline="No archived boards" body="Archived boards will appear here." />
+            <EmptyState icon="Archive" headline="No archived boards" body="Archived boards will appear here." />
           </View>
         )
       }

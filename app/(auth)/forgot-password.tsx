@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import CircleAlert from 'lucide-react-native/icons/circle-alert';
+import MailCheck from 'lucide-react-native/icons/mail-check';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
@@ -53,14 +54,14 @@ export default function ForgotPasswordScreen() {
 
   const errorBox = error ? (
     <View style={[styles.box, { backgroundColor: colors.dangerSurface, borderColor: colors.danger }]}>
-      <MaterialCommunityIcons name="alert-circle-outline" size={16} color={colors.danger} />
+      <CircleAlert size={16} color={colors.danger} />
       <Text style={[styles.boxText, { color: colors.danger }]}>{error}</Text>
     </View>
   ) : null;
 
   const successBox = sent ? (
     <View style={[styles.box, { backgroundColor: colors.successSurface, borderColor: colors.success }]}>
-      <MaterialCommunityIcons name="email-check-outline" size={16} color={colors.success} />
+      <MailCheck size={16} color={colors.success} />
       <Text style={[styles.boxText, { color: colors.success }]}>
         We sent a reset link to your {email.trim()}.
       </Text>

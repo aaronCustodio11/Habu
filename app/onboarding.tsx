@@ -1,15 +1,15 @@
 import { useRef, useState } from 'react';
 import { FlatList, Text, useWindowDimensions, View, type ViewToken } from 'react-native';
 import { router } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
+import { LucideIcon, type LucideIconName } from '@/components/ui/LucideIcon';
 import { Button } from '@/components/ui/Button';
 import { onboardingStore } from '@/store/onboardingStore';
 import { spacing, typography } from '@/constants/Colors';
 
 interface Slide {
   key: string;
-  icon: string;
+  icon: LucideIconName;
   title: string;
   body: string;
 }
@@ -17,19 +17,19 @@ interface Slide {
 const SLIDES: Slide[] = [
   {
     key: 'welcome',
-    icon: 'fire',
+    icon: 'Flame',
     title: 'Welcome to Habu',
     body: 'Track daily habits with a heatmap, one board at a time.',
   },
   {
     key: 'one-at-a-time',
-    icon: 'calendar-blank',
+    icon: 'Calendar',
     title: 'One habit at a time',
     body: 'Every board is a single habit. Check in each day to keep it alive.',
   },
   {
     key: 'streak',
-    icon: 'trophy',
+    icon: 'Trophy',
     title: 'Keep the streak alive',
     body: 'Your heatmap and streaks build the moment you start. Small wins add up.',
   },
@@ -82,7 +82,7 @@ export default function OnboardingScreen() {
               paddingHorizontal: spacing.xl,
             }}
           >
-            <MaterialCommunityIcons name={item.icon as never} size={88} color={colors.textTertiary} />
+            <LucideIcon name={item.icon} size={88} color={colors.textTertiary} />
             <Text style={{ color: colors.textPrimary, fontSize: typography.display, fontWeight: '800', textAlign: 'center' }}>
               {item.title}
             </Text>

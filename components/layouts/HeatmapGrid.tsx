@@ -3,6 +3,7 @@ import { ScrollView, Text, View, type LayoutChangeEvent } from 'react-native';
 import Svg, { Rect } from 'react-native-svg';
 import { useTheme } from '@/hooks/useTheme';
 import { addDays, eachDayBetween, fromISODate, toISODate, todayISO } from '@/lib/dates';
+import { coverageRatio, intensityColor } from '@/lib/color';
 
 /** Short weekday names, Sunday-first to match the grid's row order. */
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -11,6 +12,19 @@ export interface HeatmapGridProps {
   /** The board's color - the only hue allowed in this grid. */
   color: string;
   completedDates?: Iterable<string>;
+  /**
+   * Amount added per log, paired with `dailyTarget`. When both are set, a
+   * completed cell's fill uses the same scoring as the preview: opacity ramps
+   * with `amountPerLog / dailyTarget` and saturates once it exceeds the target.
+   */
+  amountPerLog?: number | null;
+  dailyTarget?: number | null;
+  /**
+   * When false (default), the ratio is capped at 1 — an exceeding log never
+   * shows the saturated "over target" shade, mirroring the preview hiding
+   * exceeded cells. When true, past-100% cells saturate at full opacity.
+   */
+  allowExceeding?: boolean;
   /** Number of weeks to render, trailing at today. */
   weeks?: number;
   cellSize?: number;
@@ -25,9 +39,10 @@ export interface HeatmapGridProps {
  *
  * Columns are weeks (Sunday-first), rows are weekdays. Empty cells use a
  * neutral gray fill so the grid reads against both light and dark surfaces;
- * completed cells fill with the board color (the only hue in the grid). The
- * current day's cell is marked with a border so the "now" position stays
- * visible even once it's completed.
+ * completed cells fill with the board color (the only hue in the grid), with
+ * opacity scored from the amount-per-log vs daily target (same as the preview),
+ * saturating once a log exceeds the target. The current day's cell is marked
+ * with a border so the "now" position stays visible even once it's completed.
  *
  * Responsive by design: the cell size is fixed, and the week columns scroll
  * horizontally inside the component. When there are few weeks the grid hugs
@@ -38,6 +53,9 @@ export interface HeatmapGridProps {
 export function HeatmapGrid({
   color,
   completedDates,
+  amountPerLog,
+  dailyTarget,
+  allowExceeding = false,
   weeks = 18,
   cellSize = 12,
   gap = 3,
@@ -62,6 +80,19 @@ export function HeatmapGrid({
   }, [weeks, today]);
 
   const completed = useMemo(() => new Set(completedDates ?? []), [completedDates]);
+
+  // Scoring shared with the preview: fill opacity = coverage of the daily
+  // target by one log, saturated past 100%. Without amount config it's 1
+  // (full board color for every completed cell, the pre-amount behavior).
+  const ratio = useMemo(
+    () => coverageRatio(amountPerLog, dailyTarget),
+    [amountPerLog, dailyTarget],
+  );
+  // Same gate as the preview: without allowExceeding, an over-target log is
+  // capped at full opacity and never gets the saturated "exceeded" shade.
+  const effectiveRatio = allowExceeding ? ratio : Math.min(1, ratio);
+  const fillOpacity = Math.max(0, Math.min(1, effectiveRatio));
+  const doneFill = intensityColor(color, effectiveRatio);
 
   // Grid (cells only) vs full (cells + label column) widths.
   const gridWidth = cols * cellSize + (cols - 1) * gap + pad * 2;
@@ -157,7 +188,8 @@ export function HeatmapGrid({
                 width={cellSize}
                 height={cellSize}
                 rx={2}
-                fill={isDone ? color : colors.borderSubtle}
+                fill={isDone ? doneFill : colors.borderSubtle}
+                fillOpacity={isDone ? fillOpacity : 1}
                 stroke={isToday ? color : 'none'}
                 strokeWidth={isToday ? 1.5 : 0}
                 onPress={onDayPress ? () => onDayPress(day) : undefined}

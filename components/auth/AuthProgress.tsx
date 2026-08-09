@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import Check from 'lucide-react-native/icons/check';
 import { useTheme } from '@/hooks/useTheme';
 import { spacing } from '@/constants/Colors';
 
@@ -60,7 +60,7 @@ export function AuthProgress({ steps, current }: AuthProgressProps) {
                   ]}
                 >
                   {done ? (
-                    <MaterialCommunityIcons name="check" size={14} color={colors.bgBase} />
+                    <Check size={14} color={colors.bgBase} strokeWidth={3} />
                   ) : (
                     <Text
                       style={[
