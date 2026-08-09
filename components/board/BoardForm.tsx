@@ -1,10 +1,13 @@
-import { useEffect, useRef, useState, type MutableRefObject } from 'react';
+import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react';
 import { Pressable, Switch, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import ChevronRight from 'lucide-react-native/icons/chevron-right';
+
 import { useTheme } from '@/hooks/useTheme';
 import { TextField } from '@/components/ui/TextField';
 import { Button } from '@/components/ui/Button';
+import { Toast } from '@/components/ui/Toast';
 import { ColorPicker } from '@/components/board/ColorPicker';
 import { AmountStepper } from '@/components/board/AmountStepper';
 import { AmountPreview } from '@/components/board/AmountPreview';
@@ -12,9 +15,10 @@ import { HeatmapGrid } from '@/components/layouts/HeatmapGrid';
 import { LayoutPicker } from '@/components/layouts/LayoutPicker';
 import { PillGrid } from '@/components/layouts/PillGrid';
 import { RingGrid } from '@/components/layouts/RingGrid';
-import { getBoardIcon } from '@/constants/Icons';
-import { getUnitAbbr, getUnitLabel } from '@/constants/Units';
-import type { BoardLayout } from '@/constants/BoardLayouts';
+import { BOARD_ICONS, getBoardIcon } from '@/constants/Icons';
+import { LucideIcon } from '@/components/ui/LucideIcon';
+import { BOARD_UNITS, getUnitAbbr, getUnitLabel } from '@/constants/Units';
+import { BOARD_LAYOUTS, type BoardLayout } from '@/constants/BoardLayouts';
 import { iconPickStore } from '@/store/iconPickStore';
 import { unitPickStore } from '@/store/unitPickStore';
 import { radius, spacing } from '@/constants/Colors';
@@ -26,12 +30,31 @@ export interface BoardFormProps {
   onSubmit: (draft: BoardDraft) => void | Promise<void>;
   /** The header's confirm button sets this to the form's submit function. */
   submitRef?: MutableRefObject<(() => void) | null>;
+  /** Show the footer submit button (default true). Screens with a header
+   *  confirm button (e.g. edit) pass `false`. */
+  footerSubmit?: boolean;
+  /** Completion dates rendered into the layout preview (edit mode shows real
+   *  history; create mode omits it and previews stay empty). */
+  completedDates?: Iterable<string>;
 }
 
 const PRESET_TIMES = ['07:00', '09:00', '12:00', '18:00', '21:00'];
+const MAX_NAME_LENGTH = 50;
+const DEFAULT_ICON = 'fire';
+const DEFAULT_COLOR = '#43A047';
+const DEFAULT_REMINDER_TIME = '18:00';
+const HEX_RE = /^#([0-9A-Fa-f]{6})$/;
+const REMINDER_TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 /** Shared create/edit board form (preview, name, icon, color, amounts, reminder). */
-export function BoardForm({ initial, submitLabel, onSubmit, submitRef }: BoardFormProps) {
+export function BoardForm({
+  initial,
+  submitLabel,
+  onSubmit,
+  submitRef,
+  footerSubmit = true,
+  completedDates,
+}: BoardFormProps) {
   const { colors } = useTheme();
   const [name, setName] = useState(initial?.name ?? '');
   const [icon, setIcon] = useState(initial?.icon ?? 'fire');
@@ -79,38 +102,68 @@ export function BoardForm({ initial, submitLabel, onSubmit, submitRef }: BoardFo
     });
   }, []);
 
+  // Errors surface as an auto-dismissing toast (with an error haptic), so a
+  // mistake never leaves the form stuck in a stale inline message.
+  const showError = useCallback((message: string) => {
+    setError(message);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+  }, []);
+  const hideError = useCallback(() => setError(null), []);
+
   const submit = async () => {
     if (submittingRef.current) return;
-    if (!name.trim()) {
-      setError('Give your board a name.');
+
+    // Sanitize every field before it can reach the DB: trim/cap the name, drop
+    // malformed picker values back to their defaults, and validate amounts.
+    const cleanName = name.trim().slice(0, MAX_NAME_LENGTH);
+    if (!cleanName) {
+      showError('Give your board a name.');
       return;
     }
-    if (
-      trackAmounts &&
-      !allowExceeding &&
-      defaultAmount > dailyTarget
-    ) {
-      setError("Amount per log can't be above your Daily Target Amount.");
-      return;
+    const cleanIcon = BOARD_ICONS.some((option) => option.key === icon) ? icon : DEFAULT_ICON;
+    const cleanColor = HEX_RE.test(color) ? color : DEFAULT_COLOR;
+    const cleanLayout = BOARD_LAYOUTS.includes(layout) ? layout : 'heatmap';
+    const cleanUnit = BOARD_UNITS.some((option) => option.key === unit) ? unit : 'count';
+
+    if (trackAmounts) {
+      if (
+        !(Number.isFinite(defaultAmount) && defaultAmount > 0) ||
+        !(Number.isFinite(dailyTarget) && dailyTarget > 0)
+      ) {
+        showError('Amounts must be positive numbers.');
+        return;
+      }
+      if (!allowExceeding && defaultAmount > dailyTarget) {
+        showError("Amount per log can't be above your Daily Target Amount.");
+        return;
+      }
     }
+
+    let cleanReminderTime: string | null = null;
+    if (reminderEnabled) {
+      cleanReminderTime = REMINDER_TIME_RE.test(reminderTime) ? reminderTime : DEFAULT_REMINDER_TIME;
+    }
+
     setError(null);
     submittingRef.current = true;
     setSubmitting(true);
     try {
       await onSubmit({
-        name: name.trim(),
-        icon,
-        color,
-        layout,
+        name: cleanName,
+        icon: cleanIcon,
+        color: cleanColor,
+        layout: cleanLayout,
         trackAmounts,
-        unit: trackAmounts ? unit : 'count',
+        unit: trackAmounts ? cleanUnit : 'count',
         useDefaultAmount: trackAmounts,
         defaultAmount: trackAmounts ? defaultAmount : null,
         dailyTargetAmount: trackAmounts ? dailyTarget : null,
         allowExceeding,
         reminderEnabled,
-        reminderTime: reminderEnabled ? reminderTime : null,
+        reminderTime: cleanReminderTime,
       });
+    } catch (error) {
+      showError(error instanceof Error ? error.message : 'Something went wrong. Please try again.');
     } finally {
       submittingRef.current = false;
       setSubmitting(false);
@@ -181,26 +234,52 @@ export function BoardForm({ initial, submitLabel, onSubmit, submitRef }: BoardFo
               borderColor: colors.borderSubtle,
             }}
           >
-            <MaterialCommunityIcons name={iconGlyph} size={22} color={color} />
+            <LucideIcon name={iconGlyph} size={22} color={color} />
           </Pressable>
           <View style={{ flex: 1, minWidth: 0 }}>
             <TextField
               variant="flat"
               placeholder="Enter Board Name"
-              placeholderIcon="pencil-outline"
+              placeholderIcon="PencilLine"
               value={name}
               onChangeText={setName}
               style={{ textAlign: 'left' }}
             />
           </View>
-          {layout === 'pill' ? <PillGrid color={color} cellSize={12} gap={3} /> : null}
+          {layout === 'pill' ? (
+            <PillGrid
+              color={color}
+              cellSize={12}
+              gap={3}
+              completedDates={completedDates}
+              amountPerLog={defaultAmount}
+              dailyTarget={dailyTarget}
+              allowExceeding={allowExceeding}
+            />
+          ) : null}
         </View>
         {layout === 'ring' ? (
           <View style={{ alignItems: 'center' }}>
-            <RingGrid color={color} gap={3} />
+            <RingGrid
+              color={color}
+              gap={3}
+              completedDates={completedDates}
+              amountPerLog={defaultAmount}
+              dailyTarget={dailyTarget}
+            />
           </View>
         ) : layout === 'heatmap' ? (
-          <HeatmapGrid color={color} weeks={15} cellSize={16} gap={4} showDayLabels />
+          <HeatmapGrid
+            color={color}
+            weeks={15}
+            cellSize={16}
+            gap={4}
+            showDayLabels
+            completedDates={completedDates}
+            amountPerLog={defaultAmount}
+            dailyTarget={dailyTarget}
+            allowExceeding={allowExceeding}
+          />
         ) : null}
       </View>
 
@@ -257,7 +336,7 @@ export function BoardForm({ initial, submitLabel, onSubmit, submitRef }: BoardFo
                 {getUnitAbbr(unit) ? ` (${getUnitAbbr(unit)})` : ''}
               </Text>
             </View>
-            <MaterialCommunityIcons name="chevron-right" size={22} color={colors.textTertiary} />
+            <ChevronRight size={22} color={colors.textTertiary} />
           </Pressable>
         ) : null}
       </View>
@@ -333,9 +412,11 @@ export function BoardForm({ initial, submitLabel, onSubmit, submitRef }: BoardFo
         </View>
       ) : null}
 
-      {error ? <Text style={{ color: colors.textSecondary, fontSize: 14 }}>{error}</Text> : null}
+      {footerSubmit ? (
+        <Button label={submitLabel} onPress={() => void submit()} disabled={submitting} />
+      ) : null}
 
-      <Button label={submitLabel} onPress={() => void submit()} disabled={submitting} />
+      <Toast message={error} onHide={hideError} />
     </View>
   );
 }

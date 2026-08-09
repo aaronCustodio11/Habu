@@ -9,10 +9,7 @@ export async function fetchWidgetConfigs(userId: string): Promise<WidgetConfigRo
     .from('widget_configs')
     .select('*')
     .eq('user_id', userId);
-  if (error) {
-    console.warn('[sync] fetch widget configs failed:', error.message);
-    return [];
-  }
+  if (error) throw error;
   return data ?? [];
 }
 
@@ -22,7 +19,7 @@ export async function upsertWidgetConfigs(rows: WidgetConfigRow[]): Promise<void
     onConflict: 'id',
     ignoreDuplicates: false,
   });
-  if (error) console.warn('[sync] upsert widget configs failed:', error.message);
+  if (error) throw error;
 }
 
 export async function deleteWidgetConfigs(ids: string[], userId: string): Promise<void> {
@@ -32,5 +29,5 @@ export async function deleteWidgetConfigs(ids: string[], userId: string): Promis
     .delete()
     .in('id', ids)
     .eq('user_id', userId);
-  if (error) console.warn('[sync] delete widget configs failed:', error.message);
+  if (error) throw error;
 }

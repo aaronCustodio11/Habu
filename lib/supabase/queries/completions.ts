@@ -9,10 +9,7 @@ export async function fetchCompletions(boardIds: string[]): Promise<CompletionRo
     .from('completions')
     .select('*')
     .in('board_id', boardIds);
-  if (error) {
-    console.warn('[sync] fetch completions failed:', error.message);
-    return [];
-  }
+  if (error) throw error;
   return data ?? [];
 }
 
@@ -22,7 +19,7 @@ export async function upsertCompletions(rows: CompletionRow[]): Promise<void> {
     onConflict: 'id',
     ignoreDuplicates: false,
   });
-  if (error) console.warn('[sync] upsert completions failed:', error.message);
+  if (error) throw error;
 }
 
 export async function deleteCompletions(
@@ -35,5 +32,5 @@ export async function deleteCompletions(
     .delete()
     .in('id', ids)
     .in('board_id', boardIds);
-  if (error) console.warn('[sync] delete completions failed:', error.message);
+  if (error) throw error;
 }

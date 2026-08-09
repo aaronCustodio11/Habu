@@ -1,8 +1,8 @@
 import { memo, useCallback, useMemo } from 'react';
 import { FlatList, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
-import { BOARD_ICONS, type BoardIconName, type BoardIconOption } from '@/constants/Icons';
+import { LucideIcon } from '@/components/ui/LucideIcon';
+import { BOARD_ICONS, type BoardIconOption } from '@/constants/Icons';
 import { radius, spacing } from '@/constants/Colors';
 
 /** Caps the column layout width so the grid stays tight on tablets. */
@@ -77,8 +77,8 @@ style={({ pressed }) => [
           pressed && styles.pressedScale,
         ]}
     >
-      <MaterialCommunityIcons
-        name={item.icon as BoardIconName}
+      <LucideIcon
+        name={item.icon}
         size={Math.max(18, swatchWidth * 0.42)}
         color={selected ? color : colors.iconDefault}
       />

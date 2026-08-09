@@ -1,4 +1,5 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import Check from 'lucide-react-native/icons/check';
+import * as Haptics from 'expo-haptics';
 import { Pressable, StyleSheet, View } from 'react-native';
 import {
   GlassView,
@@ -24,11 +25,15 @@ export function CheckButton({ label = 'Confirm', disabled = false, onPress }: Ch
   const { colors, isDark } = useTheme();
   const liquidGlass = isLiquidGlassAvailable() && isGlassEffectAPIAvailable();
 
+  // The solid (non-glass) fallback gets the "primary" treatment — a filled
+  // black disc in light mode / white disc in dark mode with an inverted check —
+  // so it stands out on the screen header. The Liquid Glass variant keeps a
+  // regular tinted check, which reads better on the translucent material.
   const icon = (
-    <MaterialCommunityIcons
-      name="check"
+    <Check
       size={28}
-      color={disabled ? colors.textTertiary : colors.textPrimary}
+      color={disabled ? colors.textTertiary : liquidGlass ? colors.textPrimary : colors.bgBase}
+      strokeWidth={2.5}
     />
   );
 
@@ -37,7 +42,11 @@ export function CheckButton({ label = 'Confirm', disabled = false, onPress }: Ch
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled }}
-      onPress={onPress}
+      onPress={() => {
+        if (disabled) return;
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+        onPress();
+      }}
       disabled={disabled}
       hitSlop={8}
       style={({ pressed }) => [
@@ -56,7 +65,7 @@ export function CheckButton({ label = 'Confirm', disabled = false, onPress }: Ch
           {icon}
         </GlassView>
       ) : (
-        <View style={[styles.disc, { backgroundColor: colors.bgSurface }]}>
+        <View style={[styles.disc, { backgroundColor: disabled ? colors.borderSubtle : colors.textPrimary }]}>
           {icon}
         </View>
       )}

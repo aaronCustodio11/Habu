@@ -23,7 +23,15 @@ export function HeatmapWidget({ board, dates }: HeatmapWidgetProps) {
       }}
     >
       <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Heatmap</Text>
-      <HeatmapGrid color={board.color} completedDates={dates} weeks={16} showDayLabels />
+      <HeatmapGrid
+        color={board.color}
+        completedDates={dates}
+        weeks={16}
+        showDayLabels
+        amountPerLog={board.defaultAmount}
+        dailyTarget={board.dailyTargetAmount}
+        allowExceeding={board.allowExceeding}
+      />
     </View>
   );
 }

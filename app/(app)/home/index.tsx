@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import SlidersHorizontal from 'lucide-react-native/icons/sliders-horizontal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/hooks/useAuth';
 import { useBoards } from '@/hooks/useBoards';
@@ -97,7 +97,7 @@ export default function HomeScreen() {
               onPress={() => router.push('/modal/customize-home-stats')}
               style={{ padding: spacing.xs }}
             >
-              <MaterialCommunityIcons name="tune-variant" size={24} color={colors.textSecondary} />
+              <SlidersHorizontal size={24} color={colors.textSecondary} />
             </Pressable>
           ) : null}
         </View>
@@ -130,7 +130,7 @@ export default function HomeScreen() {
           loading ? null : (
             <View style={[contentStyle, { paddingHorizontal: spacing.lg }]}>
               <EmptyState
-                icon="fire"
+                icon="Flame"
                 headline="Nothing here yet"
                 body="Create your first habit board and start your heatmap today."
                 actionLabel="New Board"

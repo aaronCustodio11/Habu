@@ -1,11 +1,11 @@
 import { View, Text } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
+import { LucideIcon, type LucideIconName } from '@/components/ui/LucideIcon';
 import { Button } from '@/components/ui/Button';
 import { spacing, typography } from '@/constants/Colors';
 
 export interface EmptyStateProps {
-  icon?: string;
+  icon?: LucideIconName;
   headline: string;
   body?: string;
   actionLabel?: string;
@@ -13,11 +13,11 @@ export interface EmptyStateProps {
 }
 
 /** "Nothing here yet" - centered grayscale icon + headline + single primary action. */
-export function EmptyState({ icon = 'inbox-outline', headline, body, actionLabel, onAction }: EmptyStateProps) {
+export function EmptyState({ icon = 'Inbox', headline, body, actionLabel, onAction }: EmptyStateProps) {
   const { colors } = useTheme();
   return (
     <View style={{ alignItems: 'center', gap: spacing.md, padding: spacing.xl }}>
-      <MaterialCommunityIcons name={icon as never} size={56} color={colors.textTertiary} />
+      <LucideIcon name={icon} size={56} color={colors.textTertiary} />
       <Text style={{ color: colors.textPrimary, fontSize: typography.heading, fontWeight: '700', textAlign: 'center' }}>
         {headline}
       </Text>

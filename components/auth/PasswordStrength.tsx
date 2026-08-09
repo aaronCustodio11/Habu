@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import Circle from 'lucide-react-native/icons/circle';
+import CircleCheck from 'lucide-react-native/icons/circle-check';
 import { useTheme } from '@/hooks/useTheme';
 import { evaluatePasswordStrength } from '@/lib/security';
 import { spacing } from '@/constants/Colors';
@@ -53,11 +54,11 @@ export function PasswordStrength({ password }: PasswordStrengthProps) {
         <View style={styles.checks}>
           {checks.map((check) => (
             <View key={check.label} style={styles.checkRow}>
-              <MaterialCommunityIcons
-                name={check.met ? 'check-circle' : 'circle-outline'}
-                size={16}
-                color={check.met ? colors.textPrimary : colors.textTertiary}
-              />
+              {check.met ? (
+                <CircleCheck size={16} color={colors.textPrimary} />
+              ) : (
+                <Circle size={16} color={colors.textTertiary} />
+              )}
               <Text style={[styles.checkLabel, { color: colors.textSecondary }]}>{check.label}</Text>
             </View>
           ))}

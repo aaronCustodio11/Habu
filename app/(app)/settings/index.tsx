@@ -1,15 +1,16 @@
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import ChevronRight from 'lucide-react-native/icons/chevron-right';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { useContentWidth } from '@/hooks/useContentWidth';
+import { LucideIcon, type LucideIconName } from '@/components/ui/LucideIcon';
 import { spacing, typography } from '@/constants/Colors';
 
 interface Row {
   key: string;
-  icon: string;
+  icon: LucideIconName;
   label: string;
   onPress: () => void;
 }
@@ -22,10 +23,10 @@ export default function SettingsScreen() {
   const { signOut, email } = useAuth();
 
   const rows: Row[] = [
-    { key: 'account', icon: 'account-outline', label: 'Account', onPress: () => router.push('/settings/account') },
-    { key: 'notifications', icon: 'bell-outline', label: 'Notifications', onPress: () => router.push('/settings/notifications') },
-    { key: 'theme', icon: 'theme-light-dark', label: 'Theme', onPress: () => router.push('/settings/theme') },
-    { key: 'delete', icon: 'delete-outline', label: 'Delete Account', onPress: () => router.push('/settings/delete-account') },
+    { key: 'account', icon: 'CircleUser', label: 'Account', onPress: () => router.push('/settings/account') },
+    { key: 'notifications', icon: 'Bell', label: 'Notifications', onPress: () => router.push('/settings/notifications') },
+    { key: 'theme', icon: 'Contrast', label: 'Theme', onPress: () => router.push('/settings/theme') },
+    { key: 'delete', icon: 'Trash2', label: 'Delete Account', onPress: () => router.push('/settings/delete-account') },
   ];
 
   return (
@@ -70,11 +71,11 @@ export default function SettingsScreen() {
                 pressed && { opacity: 0.7 },
               ]}
             >
-              <MaterialCommunityIcons name={row.icon as never} size={22} color={colors.textSecondary} />
+              <LucideIcon name={row.icon} size={22} color={colors.textSecondary} />
               <Text style={{ color: colors.textPrimary, fontSize: 17, flex: 1 }} numberOfLines={1}>
                 {row.label}
               </Text>
-              <MaterialCommunityIcons name="chevron-right" size={22} color={colors.textTertiary} />
+              <ChevronRight size={22} color={colors.textTertiary} />
             </Pressable>
           ))}
         </View>

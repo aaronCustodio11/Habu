@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import CircleAlert from 'lucide-react-native/icons/circle-alert';
+import MailCheck from 'lucide-react-native/icons/mail-check';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
@@ -82,7 +83,7 @@ export default function LoginScreen() {
 
   const errorBox = error ? (
     <View style={[styles.errorBox, { backgroundColor: colors.dangerSurface, borderColor: colors.danger }]}>
-      <MaterialCommunityIcons name="alert-circle-outline" size={16} color={colors.danger} />
+      <CircleAlert size={16} color={colors.danger} />
       <Text style={[styles.errorText, { color: colors.danger }]}>{error}</Text>
     </View>
   ) : null;
@@ -94,7 +95,7 @@ export default function LoginScreen() {
       onPress={dismissNotice}
       style={[styles.errorBox, { backgroundColor: colors.successSurface, borderColor: colors.success }]}
     >
-      <MaterialCommunityIcons name="email-check-outline" size={16} color={colors.success} />
+      <MailCheck size={16} color={colors.success} />
       <Text style={[styles.errorText, { color: colors.success }]}>{notice}</Text>
     </Pressable>
   ) : null;

@@ -192,12 +192,19 @@ export const widgetConfigsRepo = {
     );
   },
 
+  /**
+   * Hard-delete rows absent from a successful cloud pull (deleted on another
+   * device, or children of a board deleted elsewhere). Runs only after all
+   * fetches succeed, so `pending_sync = 0` rows are cloud-confirmed and safe to
+   * remove — keeping the table sized to live data instead of accumulating dead
+   * `pending_delete` zombies.
+   */
   async deleteRowsNotIn(ids: string[]): Promise<void> {
     const db = await getDb();
     const placeholders = ids.map(() => '?').join(', ');
     const where = placeholders ? ` AND id NOT IN (${placeholders})` : '';
     await db.runAsync(
-      `UPDATE widget_configs SET pending_delete = 1, pending_sync = 0 WHERE pending_sync = 0 AND pending_delete = 0${where}`,
+      `DELETE FROM widget_configs WHERE pending_sync = 0 AND pending_delete = 0${where}`,
       ...ids,
     );
   },

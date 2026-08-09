@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import ChevronDown from 'lucide-react-native/icons/chevron-down';
+import ChevronUp from 'lucide-react-native/icons/chevron-up';
 import { useTheme } from '@/hooks/useTheme';
 import { LAYOUT_OPTIONS, getLayoutLabel, type BoardLayout } from '@/constants/BoardLayouts';
 import { radius, spacing } from '@/constants/Colors';
@@ -56,11 +57,7 @@ export function LayoutPicker({ value, color, onChange }: LayoutPickerProps) {
           <Text style={{ color: colors.textPrimary, fontSize: 17 }}>{getLayoutLabel(value)}</Text>
           <Text style={{ color: colors.textTertiary, fontSize: 12 }}>Visualization style</Text>
         </View>
-        <MaterialCommunityIcons
-          name={expanded ? 'chevron-up' : 'chevron-down'}
-          size={24}
-          color={colors.textTertiary}
-        />
+        {expanded ? <ChevronUp size={24} color={colors.textTertiary} /> : <ChevronDown size={24} color={colors.textTertiary} />}
       </Pressable>
 
       {expanded ? (

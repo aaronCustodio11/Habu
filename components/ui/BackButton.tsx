@@ -1,4 +1,4 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import ChevronLeft from 'lucide-react-native/icons/chevron-left';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import {
@@ -24,7 +24,7 @@ export function BackButton({ label = 'Go back', onPress }: BackButtonProps) {
   const { colors, isDark } = useTheme();
   const liquidGlass = isLiquidGlassAvailable() && isGlassEffectAPIAvailable();
 
-  const icon = <MaterialCommunityIcons name="chevron-left" size={28} color={colors.textPrimary} />;
+  const icon = <ChevronLeft size={28} color={colors.textPrimary} strokeWidth={2.5} />;
 
   return (
     <Pressable

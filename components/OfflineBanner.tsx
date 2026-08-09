@@ -1,5 +1,5 @@
 import { Text, View } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import CloudOff from 'lucide-react-native/icons/cloud-off';
 import { useTheme } from '@/hooks/useTheme';
 import { spacing } from '@/constants/Colors';
 import { useSyncStatus } from '@/lib/sync/useSyncStatus';
@@ -23,7 +23,7 @@ export function OfflineBanner() {
         paddingHorizontal: spacing.md,
       }}
     >
-      <MaterialCommunityIcons name="cloud-off-outline" size={16} color={colors.textSecondary} />
+      <CloudOff size={16} color={colors.textSecondary} />
       <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Offline - changes will sync later</Text>
     </View>
   );

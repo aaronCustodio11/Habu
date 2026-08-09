@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { completionsRepo } from '@/lib/db/repositories/completionsRepo';
 import { scheduleSync } from '@/lib/sync/syncEngine';
 import { todayISO } from '@/lib/dates';
@@ -30,7 +30,10 @@ export function useCompletions(boardId: string, userId: string | null): UseCompl
     void reload();
   }, [reload]);
 
-  const dates = new Set(completions.map((c) => c.completedOn));
+  const dates = useMemo(
+    () => new Set(completions.map((c) => c.completedOn)),
+    [completions],
+  );
   const isCheckedInToday = dates.has(todayISO());
 
   const checkIn = useCallback(

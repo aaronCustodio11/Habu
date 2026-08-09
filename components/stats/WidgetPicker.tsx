@@ -1,6 +1,6 @@
 import { Pressable, Text, View } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
+import { LucideIcon } from '@/components/ui/LucideIcon';
 import { WIDGET_TYPES, type WidgetTypeKey } from '@/constants/WidgetTypes';
 import { radius, spacing } from '@/constants/Colors';
 
@@ -40,7 +40,7 @@ export function WidgetPicker({ existing, onAdd }: WidgetPickerProps) {
               pressed && { opacity: 0.7 },
             ]}
           >
-            <MaterialCommunityIcons name={type.icon as never} size={28} color={colors.textSecondary} />
+            <LucideIcon name={type.icon} size={28} color={colors.textSecondary} />
             <Text style={{ color: colors.textSecondary, fontSize: 12, textAlign: 'center' }}>
               {type.label}
             </Text>

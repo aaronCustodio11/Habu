@@ -1,5 +1,7 @@
-import { View, Text } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Pressable, View, Text } from 'react-native';
+import ChevronDown from 'lucide-react-native/icons/chevron-down';
+import ChevronUp from 'lucide-react-native/icons/chevron-up';
+import X from 'lucide-react-native/icons/x';
 import { useTheme } from '@/hooks/useTheme';
 import { getWidgetType, type WidgetTypeKey } from '@/constants/WidgetTypes';
 import { WidgetRenderer } from '@/components/stats/WidgetRenderer';
@@ -32,34 +34,34 @@ export function WidgetSlot({ widgetType, board, dates, onMoveUp, onMoveDown, onR
             <View style={{ flex: 1 }} />
           )}
           {onMoveUp ? (
-            <MaterialCommunityIcons
-              name="chevron-up"
-              size={24}
-              color={colors.textSecondary}
-              onPress={onMoveUp}
-              accessibilityLabel="Move widget up"
+            <Pressable
               accessibilityRole="button"
-            />
+              accessibilityLabel="Move widget up"
+              onPress={onMoveUp}
+              hitSlop={8}
+            >
+              <ChevronUp size={24} color={colors.textSecondary} />
+            </Pressable>
           ) : null}
           {onMoveDown ? (
-            <MaterialCommunityIcons
-              name="chevron-down"
-              size={24}
-              color={colors.textSecondary}
-              onPress={onMoveDown}
-              accessibilityLabel="Move widget down"
+            <Pressable
               accessibilityRole="button"
-            />
+              accessibilityLabel="Move widget down"
+              onPress={onMoveDown}
+              hitSlop={8}
+            >
+              <ChevronDown size={24} color={colors.textSecondary} />
+            </Pressable>
           ) : null}
           {onRemove ? (
-            <MaterialCommunityIcons
-              name="close"
-              size={22}
-              color={colors.textSecondary}
-              onPress={onRemove}
-              accessibilityLabel="Remove widget"
+            <Pressable
               accessibilityRole="button"
-            />
+              accessibilityLabel="Remove widget"
+              onPress={onRemove}
+              hitSlop={8}
+            >
+              <X size={22} color={colors.textSecondary} />
+            </Pressable>
           ) : null}
         </View>
       ) : null}

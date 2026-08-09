@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { useTheme } from '@/hooks/useTheme';
 import { spacing } from '@/constants/Colors';
+import { intensityColor } from '@/lib/color';
 import type { BoardLayout } from '@/constants/BoardLayouts';
 
 const MAX_PREVIEW_CELLS = 7;
@@ -22,25 +23,6 @@ export interface AmountPreviewProps {
 interface PreviewCell {
   ratio: number;
   exceeded: boolean;
-}
-
-/** Parses '#RRGGBB' into [r, g, b] 0..255. */
-function parseHex(hex: string): [number, number, number] {
-  const h = hex.replace('#', '');
-  return [
-    parseInt(h.slice(0, 2), 16),
-    parseInt(h.slice(2, 4), 16),
-    parseInt(h.slice(4, 6), 16),
-  ];
-}
-
-/** Returns a more saturated version of `hex` by pushing channels away from gray. */
-function saturate(hex: string, amount: number): string {
-  const [r, g, b] = parseHex(hex);
-  const toHex = (n: number) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0');
-  // Push each channel away from the neutral midpoint by `amount` (0..1).
-  const push = (c: number) => 127 + (c - 127) * (1 + amount);
-  return `#${toHex(push(r))}${toHex(push(g))}${toHex(push(b))}`;
 }
 
 /**
@@ -74,8 +56,10 @@ function buildCells(
 /**
  * Live color-intensity preview for the create/edit board flow. Consumes the
  * same cell array as every layout, reshaped per layout: squares for heatmap,
- * thick rounded pills with log labels for the pill strip, mini progress rings
- * for the ring. Disabled (neutral) state when no daily target is set.
+ * thick rounded pills with log labels for the pill strip, and mini progress
+ * rings for the ring (arc length shows progress, always the full board color —
+ * no opacity fade, matching the live RingGrid). Disabled (neutral) state when
+ * no daily target is set.
  */
 export function AmountPreview({
   color,
@@ -91,7 +75,7 @@ export function AmountPreview({
   // Opacity ramps 0 → 1 as the ratio grows; once past 100% the same color is
   // shown at full opacity but boosted in saturation.
   const fillOpacity = (ratio: number): number => Math.max(0, Math.min(1, ratio));
-  const fillColor = (ratio: number): string => (ratio > 1.0 ? saturate(color, 0.55) : color);
+  const fillColor = (ratio: number): string => intensityColor(color, ratio);
 
   const cells = useMemo(
     () => buildCells(amountPerLog, dailyTarget, allowExceeding),
@@ -149,8 +133,7 @@ export function AmountPreview({
               cx={center}
               cy={center}
               r={radius}
-              stroke={colorNow}
-              strokeOpacity={opacity}
+              stroke={color}
               strokeWidth={stroke}
               strokeLinecap="round"
               strokeDasharray={`${circumference} ${circumference}`}

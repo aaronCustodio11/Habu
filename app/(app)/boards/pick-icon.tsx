@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import SearchX from 'lucide-react-native/icons/search-x';
 import { useTheme } from '@/hooks/useTheme';
 import { IconPicker } from '@/components/board/IconPicker';
 import { TextField } from '@/components/ui/TextField';
@@ -75,6 +75,20 @@ export default function PickIconScreen() {
   const [query, setQuery] = useState('');
   const [selection, setSelection] = useState(current);
 
+  const navigation = useNavigation();
+  // Keep the latest highlight in a ref so the removal listener always sees it.
+  const selectionRef = useRef(selection);
+  selectionRef.current = selection;
+
+  // Commit the highlighted icon whenever this screen goes away — confirm check,
+  // back swipe, or back button — so the board form never silently keeps the
+  // previous icon.
+  useEffect(() => {
+    return navigation.addListener('beforeRemove', () => {
+      iconPickStore.getState().setPicked(selectionRef.current);
+    });
+  }, [navigation]);
+
   const results = useMemo(() => {
     const trimmed = query.trim();
     if (!trimmed) return BOARD_ICONS;
@@ -112,7 +126,7 @@ export default function PickIconScreen() {
 
         <TextField
           placeholder="Search icons"
-          icon="magnify"
+          icon="Search"
           iconPosition="left"
           value={query}
           onChangeText={setQuery}
@@ -122,7 +136,7 @@ export default function PickIconScreen() {
 
       {results.length === 0 ? (
         <View style={styles.empty}>
-          <MaterialCommunityIcons name="magnify-close" size={44} color={colors.textTertiary} />
+          <SearchX size={44} color={colors.textTertiary} />
           <Text style={{ color: colors.textSecondary, fontSize: 15 }}>No icons match “{query.trim()}”.</Text>
         </View>
       ) : (

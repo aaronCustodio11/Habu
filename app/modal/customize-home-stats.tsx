@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import X from 'lucide-react-native/icons/x';
+
 import { useAuth } from '@/hooks/useAuth';
 import { useBoards } from '@/hooks/useBoards';
 import { useTheme } from '@/hooks/useTheme';
@@ -73,7 +74,9 @@ export default function CustomizeHomeStatsModal() {
           contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxl }}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-            <MaterialCommunityIcons name="close" size={24} color={colors.textSecondary} onPress={() => router.back()} accessibilityLabel="Close" accessibilityRole="button" />
+            <Pressable onPress={() => router.back()} hitSlop={12} accessibilityLabel="Close" accessibilityRole="button">
+              <X size={24} color={colors.textSecondary} />
+            </Pressable>
             <Text style={{ color: colors.textPrimary, fontSize: 20, fontWeight: '700' }}>Home stats</Text>
           </View>
 

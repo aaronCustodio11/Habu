@@ -2,6 +2,7 @@ import { getDb } from '../client';
 import { nowISO } from '@/lib/dates';
 import { generateId } from '@/lib/uuid';
 import type { Board, BoardDraft } from '@/types/board';
+import type { BoardRow } from '@/types/database.types';
 
 export interface BoardLocalRow {
   id: string;
@@ -23,6 +24,10 @@ export interface BoardLocalRow {
   updated_at: string;
   pending_sync: number;
   pending_delete: number;
+  /** 0 until the row has been pushed to the cloud; 1 afterwards. */
+  server_exists: number;
+  /** JSON array of column names that differ from the cloud while pending. */
+  pending_changes: string | null;
 }
 
 function mapRow(row: BoardLocalRow): Board {
@@ -47,7 +52,9 @@ function mapRow(row: BoardLocalRow): Board {
   };
 }
 
-export function toRow(board: Board): Omit<BoardLocalRow, 'pending_sync' | 'pending_delete'> {
+export function toRow(
+  board: Board,
+): Omit<BoardLocalRow, 'pending_sync' | 'pending_delete' | 'server_exists' | 'pending_changes'> {
   return {
     id: board.id,
     user_id: board.userId,
@@ -69,34 +76,111 @@ export function toRow(board: Board): Omit<BoardLocalRow, 'pending_sync' | 'pendi
   };
 }
 
+/** Cloud shape of a board (snake_case, real booleans) for direct inserts. */
+export function toCloudRow(board: Board): BoardRow {
+  return {
+    id: board.id,
+    user_id: board.userId,
+    name: board.name,
+    icon: board.icon,
+    color: board.color,
+    layout: board.layout,
+    track_amounts: board.trackAmounts,
+    unit: board.unit,
+    use_default_amount: board.useDefaultAmount,
+    default_amount: board.defaultAmount,
+    daily_target_amount: board.dailyTargetAmount,
+    allow_exceeding: board.allowExceeding,
+    reminder_enabled: board.reminderEnabled,
+    reminder_time: board.reminderTime,
+    archived: board.archived,
+    created_at: board.createdAt,
+    updated_at: board.updatedAt,
+  };
+}
+
+/** Assemble a new board (id + timestamps) from a draft, without persisting. */
+export function buildBoard(userId: string, draft: BoardDraft): Board {
+  const now = nowISO();
+  return {
+    id: generateId('board_'),
+    userId,
+    name: draft.name.trim(),
+    icon: draft.icon,
+    color: draft.color,
+    layout: draft.layout ?? 'heatmap',
+    trackAmounts: draft.trackAmounts,
+    unit: draft.trackAmounts ? draft.unit : 'count',
+    useDefaultAmount: draft.trackAmounts ? draft.useDefaultAmount : false,
+    defaultAmount: draft.trackAmounts && draft.useDefaultAmount ? draft.defaultAmount : null,
+    dailyTargetAmount: draft.trackAmounts ? draft.dailyTargetAmount : null,
+    allowExceeding: draft.allowExceeding ?? false,
+    reminderEnabled: draft.reminderEnabled,
+    reminderTime: draft.reminderEnabled ? draft.reminderTime : null,
+    archived: false,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+/** Board fields → their local column names, used to diff what actually changed. */
+const FIELD_COLUMNS: Array<[keyof Board, string]> = [
+  ['name', 'name'],
+  ['icon', 'icon'],
+  ['color', 'color'],
+  ['layout', 'layout'],
+  ['trackAmounts', 'track_amounts'],
+  ['unit', 'unit'],
+  ['useDefaultAmount', 'use_default_amount'],
+  ['defaultAmount', 'default_amount'],
+  ['dailyTargetAmount', 'daily_target_amount'],
+  ['allowExceeding', 'allow_exceeding'],
+  ['reminderEnabled', 'reminder_enabled'],
+  ['reminderTime', 'reminder_time'],
+  ['archived', 'archived'],
+];
+
+function changedColumns(existing: Board, next: Board): string[] {
+  return FIELD_COLUMNS.filter(([key]) => existing[key] !== next[key]).map(([, column]) => column);
+}
+
+/** Accumulate changed columns into the row's pending_changes (JSON array). */
+async function appendChangedFields(id: string, columns: string[]): Promise<void> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<Pick<BoardLocalRow, 'pending_changes'>>(
+    'SELECT pending_changes FROM boards WHERE id = ?',
+    id,
+  );
+  const names: string[] = row?.pending_changes ? (JSON.parse(row.pending_changes) as string[]) : [];
+  for (const column of columns) {
+    if (!names.includes(column)) names.push(column);
+  }
+  await db.runAsync(
+    'UPDATE boards SET pending_changes = ? WHERE id = ?',
+    JSON.stringify(names),
+    id,
+  );
+}
+
 export const boardsRepo = {
   async create(userId: string, draft: BoardDraft): Promise<Board> {
+    const board = buildBoard(userId, draft);
+    await this.insertLocal(board, 1);
+    return board;
+  },
+
+  /** Insert a board already written to the cloud, marked as synced (no re-push). */
+  async createSynced(board: Board): Promise<void> {
+    await this.insertLocal(board, 0, 1);
+  },
+
+  async insertLocal(board: Board, pendingSync: 0 | 1, serverExists: number = 0): Promise<void> {
     const db = await getDb();
-    const now = nowISO();
-    const board: Board = {
-      id: generateId('board_'),
-      userId,
-      name: draft.name.trim(),
-      icon: draft.icon,
-      color: draft.color,
-      layout: draft.layout ?? 'heatmap',
-      trackAmounts: draft.trackAmounts,
-      unit: draft.trackAmounts ? draft.unit : 'count',
-      useDefaultAmount: draft.trackAmounts ? draft.useDefaultAmount : false,
-      defaultAmount: draft.trackAmounts && draft.useDefaultAmount ? draft.defaultAmount : null,
-      dailyTargetAmount: draft.trackAmounts ? draft.dailyTargetAmount : null,
-      allowExceeding: draft.allowExceeding ?? false,
-      reminderEnabled: draft.reminderEnabled,
-      reminderTime: draft.reminderEnabled ? draft.reminderTime : null,
-      archived: false,
-      createdAt: now,
-      updatedAt: now,
-    };
     const row = toRow(board);
     await db.runAsync(
       `INSERT INTO boards
-        (id, user_id, name, icon, color, layout, track_amounts, unit, use_default_amount, default_amount, daily_target_amount, allow_exceeding, reminder_enabled, reminder_time, archived, created_at, updated_at, pending_sync)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+        (id, user_id, name, icon, color, layout, track_amounts, unit, use_default_amount, default_amount, daily_target_amount, allow_exceeding, reminder_enabled, reminder_time, archived, created_at, updated_at, pending_sync, server_exists)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       row.id,
       row.user_id,
       row.name,
@@ -114,8 +198,9 @@ export const boardsRepo = {
       row.archived,
       row.created_at,
       row.updated_at,
+      pendingSync,
+      serverExists,
     );
-    return board;
   },
 
   async getById(id: string): Promise<Board | null> {
@@ -166,6 +251,7 @@ export const boardsRepo = {
       reminderTime: changes.reminderEnabled ? (changes.reminderTime ?? existing.reminderTime) : null,
     };
     const row = toRow(next);
+    const changed = changedColumns(existing, next);
     await db.runAsync(
       `UPDATE boards SET name = ?, icon = ?, color = ?, layout = ?, track_amounts = ?, unit = ?, use_default_amount = ?, default_amount = ?, daily_target_amount = ?, allow_exceeding = ?, reminder_enabled = ?, reminder_time = ?,
         archived = ?, updated_at = ?, pending_sync = 1
@@ -186,6 +272,9 @@ export const boardsRepo = {
       row.updated_at,
       id,
     );
+    if (changed.length > 0) {
+      await appendChangedFields(id, changed);
+    }
     return next;
   },
 
@@ -197,6 +286,7 @@ export const boardsRepo = {
       nowISO(),
       id,
     );
+    await appendChangedFields(id, ['archived']);
     return this.getById(id);
   },
 
@@ -217,7 +307,10 @@ export const boardsRepo = {
 
   async markSynced(id: string): Promise<void> {
     const db = await getDb();
-    await db.runAsync('UPDATE boards SET pending_sync = 0 WHERE id = ?', id);
+    await db.runAsync(
+      'UPDATE boards SET pending_sync = 0, server_exists = 1, pending_changes = NULL WHERE id = ?',
+      id,
+    );
   },
 
   /** Called by the sync engine after the cloud delete succeeded. */
@@ -230,7 +323,9 @@ export const boardsRepo = {
    * Last-write-wins merge used when pulling from the cloud. Local rows with
    * unsynced changes win, everything else takes the cloud's version.
    */
-  async upsertFromCloud(cloud: Omit<BoardLocalRow, 'pending_sync' | 'pending_delete'>): Promise<void> {
+  async upsertFromCloud(
+    cloud: Omit<BoardLocalRow, 'pending_sync' | 'pending_delete' | 'server_exists' | 'pending_changes'>,
+  ): Promise<void> {
     const db = await getDb();
     const local = await db.getFirstAsync<BoardLocalRow>(
       'SELECT * FROM boards WHERE id = ?',
@@ -241,8 +336,8 @@ export const boardsRepo = {
     }
     await db.runAsync(
       `INSERT INTO boards
-        (id, user_id, name, icon, color, layout, track_amounts, unit, use_default_amount, default_amount, daily_target_amount, allow_exceeding, reminder_enabled, reminder_time, archived, created_at, updated_at, pending_sync, pending_delete)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0)
+        (id, user_id, name, icon, color, layout, track_amounts, unit, use_default_amount, default_amount, daily_target_amount, allow_exceeding, reminder_enabled, reminder_time, archived, created_at, updated_at, pending_sync, pending_delete, server_exists)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 1)
        ON CONFLICT(id) DO UPDATE SET
         user_id = excluded.user_id,
         name = excluded.name,
@@ -261,7 +356,9 @@ export const boardsRepo = {
         created_at = excluded.created_at,
         updated_at = excluded.updated_at,
         pending_sync = 0,
-        pending_delete = 0`,
+        pending_delete = 0,
+        server_exists = 1,
+        pending_changes = NULL`,
       cloud.id,
       cloud.user_id,
       cloud.name,
@@ -282,7 +379,14 @@ export const boardsRepo = {
     );
   },
 
-  /** Rows that exist locally but are not in the cloud pull — soft-delete them. */
+  /**
+   * Rows that exist locally but are not in the cloud pull — hard-delete them.
+   * Only safe because this runs after a fully successful pull: any row with
+   * `pending_sync = 0` is cloud-confirmed, so if it's absent from the snapshot
+   * it was deleted elsewhere and is garbage here. Hard-deleting (instead of
+   * zombie-marking `pending_delete = 1`) keeps the local table sized to live
+   * data instead of accumulating dead rows forever.
+   */
   async deleteRowsNotIn(ids: string[]): Promise<void> {
     const db = await getDb();
     const placeholders = ids.map(() => '?').join(', ');
@@ -291,7 +395,7 @@ export const boardsRepo = {
       : '';
     const params = ids.length > 0 ? ids : [];
     await db.runAsync(
-      `UPDATE boards SET pending_delete = 1, pending_sync = 0 WHERE pending_sync = 0 AND pending_delete = 0${where}`,
+      `DELETE FROM boards WHERE pending_sync = 0 AND pending_delete = 0${where}`,
       ...params,
     );
   },
