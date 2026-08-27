@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react';
-import { Pressable, Switch, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import ChevronRight from 'lucide-react-native/icons/chevron-right';
+import CircleAlert from 'lucide-react-native/icons/circle-alert';
 
 import { useTheme } from '@/hooks/useTheme';
 import { TextField } from '@/components/ui/TextField';
 import { Button } from '@/components/ui/Button';
-import { Toast } from '@/components/ui/Toast';
 import { ColorPicker } from '@/components/board/ColorPicker';
 import { AmountStepper } from '@/components/board/AmountStepper';
 import { AmountPreview } from '@/components/board/AmountPreview';
@@ -102,13 +102,12 @@ export function BoardForm({
     });
   }, []);
 
-  // Errors surface as an auto-dismissing toast (with an error haptic), so a
-  // mistake never leaves the form stuck in a stale inline message.
+  // Errors render inline just above the submit button (with an error haptic);
+  // they persist until the next submit attempt so the cause stays visible.
   const showError = useCallback((message: string) => {
     setError(message);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
   }, []);
-  const hideError = useCallback(() => setError(null), []);
 
   const submit = async () => {
     if (submittingRef.current) return;
@@ -412,11 +411,34 @@ export function BoardForm({
         </View>
       ) : null}
 
+      {error ? (
+        <View
+          style={[styles.errorBox, { backgroundColor: colors.dangerSurface, borderColor: colors.danger }]}
+        >
+          <CircleAlert size={16} color={colors.danger} />
+          <Text style={[styles.errorText, { color: colors.danger }]}>{error}</Text>
+        </View>
+      ) : null}
+
       {footerSubmit ? (
         <Button label={submitLabel} onPress={() => void submit()} disabled={submitting} />
       ) : null}
-
-      <Toast message={error} onHide={hideError} />
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radius.md,
+    borderWidth: 1,
+  },
+  errorText: {
+    fontSize: 14,
+    flex: 1,
+  },
+});
