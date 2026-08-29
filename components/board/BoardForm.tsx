@@ -1,5 +1,15 @@
-import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react';
-import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState, type MutableRefObject, type ReactNode } from 'react';
+import {
+  AccessibilityInfo,
+  Animated,
+  Easing,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+} from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import ChevronRight from 'lucide-react-native/icons/chevron-right';
@@ -24,6 +34,264 @@ import { unitPickStore } from '@/store/unitPickStore';
 import { radius, spacing } from '@/constants/Colors';
 import type { Board, BoardDraft } from '@/types/board';
 
+/** True when the user has OS-level "Reduce Motion" on (iOS + Android). Falls
+ *  back to false on platforms that don't expose it. Lights-on once and caches,
+ *  so it doesn't re-hit the native bridge on every render. */
+function useReduceMotion(): boolean {
+  const [reduce, setReduce] = useState(false);
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then(setReduce)
+      .catch(() => {});
+  }, []);
+  return reduce;
+}
+
+/**
+ * Premium layout-switch entrance (design doc §8 Motion): the incoming grid
+ * scales up fractionally while fading + rising, with a light spring settle so
+ * switching visual styles feels physical rather than snapping. GPU-composited
+ * transform/opacity on the native driver only, so it holds 60fps even when the
+ * user flips layouts quickly. Honour Reduce Motion by collapsing to a plain
+ * ease-out fade (no transform) as the design doc mandates.
+ */
+function LayoutPreview({ layout, children }: { layout: BoardLayout; children: ReactNode }) {
+  const reduce = useReduceMotion();
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(10)).current;
+  const scale = useRef(new Animated.Value(0.965)).current;
+
+  useEffect(() => {
+    if (reduce) {
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 160,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+      return;
+    }
+    Animated.parallel([
+      Animated.timing(opacity, { toValue: 1, duration: 240, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      Animated.spring(translateY, {
+        toValue: 0,
+        tension: 220,
+        friction: 22,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scale, {
+        toValue: 1,
+        tension: 220,
+        friction: 22,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [opacity, translateY, scale, reduce, layout]);
+
+  return (
+    <Animated.View
+      style={{
+        opacity,
+        transform: [{ translateY }, { scale }],
+      }}
+      key={layout}
+    >
+      {children}
+    </Animated.View>
+  );
+}
+
+/** Body-visualization layouts (the two that share the large preview region). */
+type BodyLayout = Extract<BoardLayout, 'ring' | 'heatmap'>;
+
+/**
+ * Body preview region (ring <-> heatmap). Keeps the previously selected grid
+ * mounted as an absolutely-positioned overlay that fades out while the new grid
+ * fades in beneath it, so switching between the two large visualizations
+ * cross-fades cleanly for every combination. The overlay is positioned absolute
+ * so it never re-flows the layout. Switching to/from the pill (a different
+ * region) isn't cross-faded here — the pill's own header fade covers it.
+ */
+function BodyCrossfade({
+  layout,
+  color,
+  completedDates,
+  amountPerLog,
+  dailyTarget,
+  allowExceeding,
+}: {
+  layout: BoardLayout;
+  color: string;
+  completedDates?: Iterable<string>;
+  amountPerLog: number;
+  dailyTarget: number;
+  allowExceeding?: boolean;
+}) {
+  const reduce = useReduceMotion();
+  const [leaving, setLeaving] = useState<BodyLayout | null>(null);
+  const leavingOpacity = useRef(new Animated.Value(0)).current;
+  const prevLayout = useRef(layout);
+
+  useEffect(() => {
+    const old = prevLayout.current;
+    prevLayout.current = layout;
+    if (old === layout) return;
+    const oldIsBody = old === 'ring' || old === 'heatmap';
+    const newIsBody = layout === 'ring' || layout === 'heatmap';
+    if (oldIsBody && newIsBody) {
+      // ring <-> heatmap: keep the outgoing grid overlaid and fade it out.
+      setLeaving(old);
+      leavingOpacity.setValue(1);
+      Animated.timing(leavingOpacity, {
+        toValue: 0,
+        duration: reduce ? 120 : 200,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (finished) setLeaving((cur) => (cur === old ? null : cur));
+      });
+    } else {
+      // Transition to/from the pill: no body overlay needed.
+      setLeaving(null);
+    }
+  }, [layout, reduce, leavingOpacity]);
+
+  const renderGrid = (l: BodyLayout) =>
+    l === 'ring' ? (
+      <View style={{ alignItems: 'center' }}>
+        <RingGrid
+          color={color}
+          gap={3}
+          completedDates={completedDates}
+          amountPerLog={amountPerLog}
+          dailyTarget={dailyTarget}
+        />
+      </View>
+    ) : (
+      <HeatmapGrid
+        color={color}
+        weeks={15}
+        cellSize={16}
+        gap={4}
+        showDayLabels
+        completedDates={completedDates}
+        amountPerLog={amountPerLog}
+        dailyTarget={dailyTarget}
+        allowExceeding={allowExceeding}
+      />
+    );
+
+  if (layout !== 'ring' && layout !== 'heatmap') return null;
+
+  return (
+    <View>
+      {/* Incoming grid (fresh mount per layout so its entrance fade runs). */}
+      <LayoutPreview key={layout} layout={layout}>
+        {renderGrid(layout)}
+      </LayoutPreview>
+      {/* Outgoing grid overlaid and fading out (doesn't affect layout height). */}
+      {leaving ? (
+        <Animated.View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            opacity: leavingOpacity,
+          }}
+        >
+          {renderGrid(leaving)}
+        </Animated.View>
+      ) : null}
+    </View>
+  );
+}
+
+/** Fixed thickness of the skeleton so it can mirror the heatmap preview shape. */
+const SKELETON_CELL = 16;
+const SKELETON_GAP = 4;
+
+/**
+ * Premium loading placeholder for the preview (edit mode, when a board's real
+ * check-in history is still being read from storage). Renders the heatmap's
+ * cell-grid silhouette in grayscale and sweeps a soft sheen across it, so the
+ * block reads as "about to populate" — not as an empty preview. Native-driver
+ * loop + fixed height means no re-layout and no jank; creation mode never
+ * mounts it (no data to wait on), so that path stays instant.
+ */
+function PreviewSkeleton({ color }: { color: string }) {
+  const { isDark } = useTheme();
+  const sheen = useRef(new Animated.Value(-1)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(sheen, {
+        toValue: 1,
+        duration: 1100,
+        easing: Easing.inOut(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [sheen]);
+
+  const rows = [13, 11, 12, 9];
+  const base = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)';
+  const tinted = `${color}22`;
+  const cellW = SKELETON_CELL;
+
+  return (
+    <View
+      style={{
+        flexDirection: 'column',
+        gap: SKELETON_GAP,
+        overflow: 'hidden',
+        height: rows.length * (cellW + SKELETON_GAP) - SKELETON_GAP,
+      }}
+    >
+      {rows.map((count, r) => (
+        <View key={r} style={{ flexDirection: 'row', gap: SKELETON_GAP, paddingLeft: r * 3 }}>
+          {Array.from({ length: Math.max(...rows) }).map((_, c) => {
+            const fill = c < count;
+            return (
+              <View
+                key={c}
+                style={{
+                  width: cellW,
+                  height: cellW,
+                  borderRadius: 4,
+                  backgroundColor: fill ? tinted : base,
+                }}
+              />
+            );
+          })}
+        </View>
+      ))}
+      {/* Sheen sweep across the silhouette. */}
+      <Animated.View
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          top: 0,
+          bottom: 0,
+          width: 80,
+          backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.6)',
+          transform: [
+            {
+              translateX: sheen.interpolate({
+                inputRange: [-1, 1],
+                outputRange: [-120, 400],
+              }),
+            },
+          ],
+        }}
+      />
+    </View>
+  );
+}
+
 export interface BoardFormProps {
   initial?: Board;
   submitLabel: string;
@@ -36,6 +304,10 @@ export interface BoardFormProps {
   /** Completion dates rendered into the layout preview (edit mode shows real
    *  history; create mode omits it and previews stay empty). */
   completedDates?: Iterable<string>;
+  /** True while the board's real history is still being read from storage
+   *  (edit mode). When set, the preview shows a brief skeleton until data
+   *  arrives; create mode leaves this unset so the preview is instant. */
+  loading?: boolean;
 }
 
 const PRESET_TIMES = ['07:00', '09:00', '12:00', '18:00', '21:00'];
@@ -54,6 +326,7 @@ export function BoardForm({
   submitRef,
   footerSubmit = true,
   completedDates,
+  loading = false,
 }: BoardFormProps) {
   const { colors } = useTheme();
   const [name, setName] = useState(initial?.name ?? '');
@@ -245,41 +518,34 @@ export function BoardForm({
               style={{ textAlign: 'left' }}
             />
           </View>
-          {layout === 'pill' ? (
-            <PillGrid
-              color={color}
-              cellSize={12}
-              gap={3}
-              completedDates={completedDates}
-              amountPerLog={defaultAmount}
-              dailyTarget={dailyTarget}
-              allowExceeding={allowExceeding}
-            />
+          {!loading && layout === 'pill' ? (
+            <LayoutPreview layout={layout}>
+              <PillGrid
+                color={color}
+                cellSize={12}
+                gap={3}
+                completedDates={completedDates}
+                amountPerLog={defaultAmount}
+                dailyTarget={dailyTarget}
+                allowExceeding={allowExceeding}
+              />
+            </LayoutPreview>
           ) : null}
         </View>
-        {layout === 'ring' ? (
-          <View style={{ alignItems: 'center' }}>
-            <RingGrid
-              color={color}
-              gap={3}
-              completedDates={completedDates}
-              amountPerLog={defaultAmount}
-              dailyTarget={dailyTarget}
-            />
+        {loading ? (
+          <View style={{ paddingBottom: spacing.xs }}>
+            <PreviewSkeleton color={color} />
           </View>
-        ) : layout === 'heatmap' ? (
-          <HeatmapGrid
+        ) : (
+          <BodyCrossfade
+            layout={layout}
             color={color}
-            weeks={15}
-            cellSize={16}
-            gap={4}
-            showDayLabels
             completedDates={completedDates}
             amountPerLog={defaultAmount}
             dailyTarget={dailyTarget}
             allowExceeding={allowExceeding}
           />
-        ) : null}
+        )}
       </View>
 
       <View style={{ gap: spacing.sm }}>

@@ -99,6 +99,29 @@ export const completionsRepo = {
     return rows.map((row) => row.completed_on);
   },
 
+  /**
+   * Fetch completed dates grouped by board id for a set of boards in a single
+   * query. Used by list screens that preview each board's layout so we avoid an
+   * N+1 round-trip — one query returns every date once, keyed by board.
+   */
+  async getDatesGroupedByBoards(boardIds: string[]): Promise<Map<string, Set<string>>> {
+    const db = await getDb();
+    const map = new Map<string, Set<string>>();
+    if (boardIds.length === 0) return map;
+    const placeholders = boardIds.map(() => '?').join(', ');
+    const rows = await db.getAllAsync<{ board_id: string; completed_on: string }>(
+      `SELECT board_id, completed_on FROM completions
+       WHERE board_id IN (${placeholders}) AND pending_delete = 0`,
+      ...boardIds,
+    );
+    for (const row of rows) {
+      const set = map.get(row.board_id) ?? new Set<string>();
+      set.add(row.completed_on);
+      map.set(row.board_id, set);
+    }
+    return map;
+  },
+
   /** Undo a check-in for a date. */
   async removeForDate(boardId: string, completedOn: string): Promise<void> {
     const db = await getDb();

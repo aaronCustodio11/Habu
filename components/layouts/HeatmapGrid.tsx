@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef } from 'react';
-import { ScrollView, Text, View, type LayoutChangeEvent } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Text, useWindowDimensions, View, type LayoutChangeEvent } from 'react-native';
 import Svg, { Rect } from 'react-native-svg';
 import { useTheme } from '@/hooks/useTheme';
 import { addDays, eachDayBetween, fromISODate, toISODate, todayISO } from '@/lib/dates';
@@ -44,11 +44,9 @@ export interface HeatmapGridProps {
  * saturating once a log exceeds the target. The current day's cell is marked
  * with a border so the "now" position stays visible even once it's completed.
  *
- * Responsive by design: the cell size is fixed, and the week columns scroll
- * horizontally inside the component. When there are few weeks the grid hugs
- * its content; as weeks accumulate it overflows and scrolls, so the heatmap
- * never squishes and never clips. The optional weekday labels stay pinned on
- * the left (they never scroll away with the data).
+ * Responsive by design: the cell size is derived from the container width so
+ * every week column (up to `weeks`) fits on screen side by side — the grid
+ * never scrolls and no cell is ever clipped, whatever the width.
  */
 export function HeatmapGrid({
   color,
@@ -63,6 +61,8 @@ export function HeatmapGrid({
   onDayPress,
 }: HeatmapGridProps) {
   const { colors } = useTheme();
+  const { width: screenWidth } = useWindowDimensions();
+  const [containerWidth, setContainerWidth] = useState(0);
   // Width reserved for the pinned weekday-label column.
   const labelGutter = showDayLabels ? 40 : 0;
 
@@ -94,61 +94,32 @@ export function HeatmapGrid({
   const fillOpacity = Math.max(0, Math.min(1, effectiveRatio));
   const doneFill = intensityColor(color, effectiveRatio);
 
-  // Grid (cells only) vs full (cells + label column) widths.
-  const gridWidth = cols * cellSize + (cols - 1) * gap + pad * 2;
-  const height = 7 * cellSize + 6 * gap + pad * 2;
+  // Fit-to-width: solve the cell size so all `cols` columns (plus gaps and the
+  // optional day-label gutter) fit the measured container width. Falls back to
+  // the screen width before layout reports, caps at the requested cell size,
+  // and floors so cells never collapse into nothing. No cell is ever clipped.
+  const usableWidth = containerWidth > 0 ? containerWidth : screenWidth;
+  const maxCell = Math.floor((usableWidth - labelGutter - gap * (cols - 1) - pad * 2) / cols);
+  const effectiveCell = Math.max(6, Math.min(cellSize, maxCell));
 
-  const scrollRef = useRef<ScrollView>(null);
-  const viewportWidthRef = useRef(0);
-  const contentWidthRef = useRef(0);
+  const gridWidth = cols * effectiveCell + (cols - 1) * gap + pad * 2;
+  const height = 7 * effectiveCell + 6 * gap + pad * 2;
 
-  // Default view = the latest day (right edge); the user scrolls left to reach
-  // the past. `onLayout` and `onContentSizeChange` fire at slightly different
-  // times, so we apply the offset whenever both widths are known. It's
-  // idempotent on purpose: the native scroll offset can be silently dropped if
-  // it's set before the ScrollView commits its content size (a real race on
-  // Android and during mount), so we re-apply it until it lands.
-  const scrollToLatest = () => {
-    const viewportWidth = viewportWidthRef.current;
-    const contentWidth = contentWidthRef.current;
-    if (viewportWidth <= 0 || contentWidth <= 0) return;
-    const maxOffset = Math.max(contentWidth - viewportWidth, 0);
-    if (maxOffset <= 0) return;
-    scrollRef.current?.scrollTo({ x: maxOffset, animated: false });
-  };
-
-  const handleLayout = (e: LayoutChangeEvent) => {
-    viewportWidthRef.current = e.nativeEvent.layout.width;
-    scrollToLatest();
-  };
-
-  const handleContentSizeChange = (width: number, _height: number) => {
-    contentWidthRef.current = width;
-    scrollToLatest();
-  };
-
-  // Post-mount fallback: once the tree has fully measured, re-apply the
-  // latest-day offset a few more times in case the layout/content callbacks
-  // fired before native committed. Content size is fixed per mount, so each
-  // call scrolls to the same spot and is a cheap no-op after the first.
-  useEffect(() => {
-    const timers = [0, 50, 150, 400].map((delay) => setTimeout(scrollToLatest, delay));
-    return () => timers.forEach(clearTimeout);
-  }, []);
+  const handleLayout = (e: LayoutChangeEvent) => setContainerWidth(e.nativeEvent.layout.width);
 
   return (
-    <View style={{ flexDirection: 'row' }}>
+    <View style={{ flexDirection: 'row', position: 'relative' }} onLayout={handleLayout}>
       {showDayLabels ? (
-        <View style={{ width: labelGutter, height: height }}>
+        <View style={{ width: labelGutter, height }}>
           {WEEKDAY_LABELS.map((label, row) => (
             <Text
               key={label}
               numberOfLines={1}
               style={{
                 position: 'absolute',
-                top: pad + row * (cellSize + gap),
-                height: cellSize,
-                lineHeight: cellSize,
+                top: pad + row * (effectiveCell + gap),
+                height: effectiveCell,
+                lineHeight: effectiveCell,
                 right: 0,
                 paddingRight: 8,
                 fontSize: 10,
@@ -162,42 +133,29 @@ export function HeatmapGrid({
         </View>
       ) : null}
 
-      <ScrollView
-        ref={scrollRef}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={{ height, flex: 1 }}
-        contentContainerStyle={{ paddingRight: pad }}
-        onLayout={handleLayout}
-        onContentSizeChange={handleContentSizeChange}
-        snapToInterval={cellSize + gap}
-        snapToAlignment="start"
-        decelerationRate="fast"
-      >
-        <Svg width={gridWidth} height={height}>
-          {days.map((day, index) => {
-            const col = Math.floor(index / 7);
-            const row = index % 7;
-            const isDone = completed.has(day);
-            const isToday = day === today;
-            return (
-              <Rect
-                key={day}
-                x={pad + col * (cellSize + gap)}
-                y={pad + row * (cellSize + gap)}
-                width={cellSize}
-                height={cellSize}
-                rx={2}
-                fill={isDone ? doneFill : colors.borderSubtle}
-                fillOpacity={isDone ? fillOpacity : 1}
-                stroke={isToday ? color : 'none'}
-                strokeWidth={isToday ? 1.5 : 0}
-                onPress={onDayPress ? () => onDayPress(day) : undefined}
-              />
-            );
-          })}
-        </Svg>
-      </ScrollView>
+      <Svg width={gridWidth} height={height}>
+        {days.map((day, index) => {
+          const col = Math.floor(index / 7);
+          const row = index % 7;
+          const isDone = completed.has(day);
+          const isToday = day === today;
+          return (
+            <Rect
+              key={day}
+              x={pad + col * (effectiveCell + gap)}
+              y={pad + row * (effectiveCell + gap)}
+              width={effectiveCell}
+              height={effectiveCell}
+              rx={2}
+              fill={isDone ? doneFill : colors.borderSubtle}
+              fillOpacity={isDone ? fillOpacity : 1}
+              stroke={isToday ? color : 'none'}
+              strokeWidth={isToday ? 1.5 : 0}
+              onPress={onDayPress ? () => onDayPress(day) : undefined}
+            />
+          );
+        })}
+      </Svg>
     </View>
   );
 }

@@ -6,7 +6,7 @@ export type BoardLayout = (typeof BOARD_LAYOUTS)[number];
 export const LAYOUT_OPTIONS: { key: BoardLayout; label: string; icon: string }[] = [
   { key: 'heatmap', label: 'Heatmap Grid', icon: 'LayoutGrid' },
   { key: 'pill', label: 'Pill Grid', icon: 'Rows3' },
-  { key: 'ring', label: 'Progress Ring', icon: 'Circle' },
+  { key: 'ring', label: 'Ring Grid', icon: 'Circle' },
 ];
 
 export function getLayoutLabel(layout: BoardLayout): string {
