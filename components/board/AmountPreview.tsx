@@ -56,8 +56,8 @@ function buildCells(
 /**
  * Live color-intensity preview for the create/edit board flow. Consumes the
  * same cell array as every layout, reshaped per layout: squares for heatmap,
- * thick rounded pills with log labels for the pill strip, and mini progress
- * rings for the ring (arc length shows progress, always the full board color —
+ * thick rounded pills with log labels for the pill strip, and mini rings for
+ * the ring grid (arc length shows progress, always the full board color —
  * no opacity fade, matching the live RingGrid). Disabled (neutral) state when
  * no daily target is set.
  */

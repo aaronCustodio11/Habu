@@ -24,10 +24,10 @@ function tint(hex: string, alpha: number): string {
 
 /**
  * Layout picker (design doc §4.3): a header row that reveals the three
- * visualization options (heatmap grid / pill grid / progress ring) on tap. Each
+ * visualization options (heatmap grid / pill grid / ring grid) on tap. Each
  * option is a card; the selected one is tinted + ringed in the board color.
- * Choosing any option collapses the dropdown so the card returns to a
- * self-describing state.
+ * The dropdown stays open after picking so the user can compare layouts before
+ * collapsing it with the header chevron.
  */
 export function LayoutPicker({ value, color, onChange }: LayoutPickerProps) {
   const { colors } = useTheme();
@@ -69,10 +69,7 @@ export function LayoutPicker({ value, color, onChange }: LayoutPickerProps) {
                 key={option.key}
                 accessibilityRole="button"
                 accessibilityState={{ selected }}
-                onPress={() => {
-                  onChange(option.key);
-                  setExpanded(false);
-                }}
+                onPress={() => onChange(option.key)}
                 style={({ pressed }) => [
                   styles.row,
                   {
@@ -87,7 +84,7 @@ export function LayoutPicker({ value, color, onChange }: LayoutPickerProps) {
                 <View style={{ flex: 1 }}>
                   <Text
                     style={{
-                      color: selected ? colors.textPrimary : colors.textSecondary,
+                      color: '#FFFFFF',
                       fontSize: 15,
                       fontWeight: selected ? '700' : '400',
                     }}

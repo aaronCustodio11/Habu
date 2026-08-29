@@ -24,7 +24,7 @@ export default function EditBoardScreen() {
   const { userId } = useAuth();
   const { boards, updateBoard, removeBoard, setArchived } = useBoards(userId);
   const board = boards.find((b) => b.id === boardId);
-  const { dates } = useCompletions(boardId ?? '', userId);
+  const { dates, loading: completionsLoading } = useCompletions(boardId ?? '', userId);
   const [busy, setBusy] = useState(false);
   // The header check button drives the form's submit via BoardForm.submitRef.
   const submitRef = useRef<(() => void) | null>(null);
@@ -114,6 +114,7 @@ export default function EditBoardScreen() {
             footerSubmit={false}
             submitRef={submitRef}
             completedDates={dates}
+            loading={completionsLoading}
             onSubmit={async (draft) => {
               await updateBoard(board.id, draft);
               router.back();
