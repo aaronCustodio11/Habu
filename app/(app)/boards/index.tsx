@@ -1,8 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Circle } from 'react-native-svg';
+import Check from 'lucide-react-native/icons/check';
+import Plus from 'lucide-react-native/icons/plus';
 import { useAuth } from '@/hooks/useAuth';
 import { useBoards } from '@/hooks/useBoards';
 import { useTheme } from '@/hooks/useTheme';
@@ -18,6 +21,122 @@ import { completionsRepo } from '@/lib/db/repositories/completionsRepo';
 import { todayISO } from '@/lib/dates';
 import { radius, spacing, typography } from '@/constants/Colors';
 import type { Board } from '@/types/board';
+
+/** How long to hold the check-in button before the custom check-in trigger. */
+const HOLD_DURATION = 650;
+
+/** Ring geometry for the hold-progress circle (matches the 48px wrapper). */
+const RING_RADIUS = 21;
+const RING_RADIUS_PX = 24;
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+
+/**
+ * The circular check-in button on the boards list. A quick tap checks in with
+ * the board's defaults; pressing and holding fills a progress ring around the
+ * button and, once full, opens the custom check-in (where the note is written).
+ *
+ * The ring is driven by a requestAnimationFrame loop updating a plain number,
+ * rendered on a regular (non-Animated) SVG circle — avoiding react-native-svg's
+ * fragile Animated integration so it can't crash the screen.
+ */
+function HoldCheckInButton({
+  label,
+  color,
+  checkedIn,
+  disabled,
+  onTap,
+  onHoldComplete,
+}: {
+  label: string;
+  color: string;
+  checkedIn: boolean;
+  disabled: boolean;
+  onTap: () => void;
+  onHoldComplete: () => void;
+}) {
+  const { colors } = useTheme();
+  const [progress, setProgress] = useState(0);
+  const startRef = useRef(0);
+  const rafRef = useRef<number | null>(null);
+  const heldRef = useRef(false);
+
+  const stopLoop = () => {
+    if (rafRef.current != null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+  };
+
+  const handlePressIn = () => {
+    heldRef.current = false;
+    startRef.current = performance.now();
+    const step = () => {
+      const elapsed = performance.now() - startRef.current;
+      const next = Math.min(1, elapsed / HOLD_DURATION);
+      setProgress(next);
+      if (next >= 1) {
+        heldRef.current = true;
+        onHoldComplete();
+        return;
+      }
+      rafRef.current = requestAnimationFrame(step);
+    };
+    rafRef.current = requestAnimationFrame(step);
+  };
+
+  const handlePressOut = () => {
+    stopLoop();
+    if (!heldRef.current) {
+      onTap();
+    }
+    setProgress(0);
+  };
+
+  const strokeOffset = RING_CIRCUMFERENCE * (1 - progress);
+
+  return (
+    <View style={{ width: 48, height: 48, alignItems: 'center', justifyContent: 'center' }}>
+      <Svg width={48} height={48} style={StyleSheet.absoluteFill} pointerEvents="none">
+        <Circle
+          cx={RING_RADIUS_PX}
+          cy={RING_RADIUS_PX}
+          r={RING_RADIUS}
+          fill="none"
+          stroke={color}
+          strokeWidth={2.5}
+          strokeLinecap="round"
+          strokeDasharray={`${RING_CIRCUMFERENCE}`}
+          strokeDashoffset={strokeOffset}
+          transform={`rotate(-90 ${RING_RADIUS_PX} ${RING_RADIUS_PX})`}
+        />
+      </Svg>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${checkedIn ? 'Undo' : 'Check in'} ${label}`}
+        accessibilityHint="Tap to check in with defaults, press and hold to customize"
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        disabled={disabled}
+        hitSlop={8}
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: radius.full,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: checkedIn ? color : colors.borderSubtle,
+          opacity: disabled ? 0.6 : 1,
+        }}
+      >
+        {checkedIn ? (
+          <Check size={20} color="#FFFFFF" strokeWidth={3} />
+        ) : (
+          <Plus size={20} color={colors.textSecondary} strokeWidth={2.5} />
+        )}
+      </Pressable>
+    </View>
+  );
+}
 
 /** One board on the list: a card shell that shows the name, renders the
  *  board's actual layout (heatmap / pill / ring) through the same layout
@@ -54,8 +173,6 @@ function BoardLayoutRow({
     <PillGrid
       color={board.color}
       completedDates={dates}
-      cellSize={12}
-      gap={3}
       amountPerLog={board.defaultAmount}
       dailyTarget={board.dailyTargetAmount}
       allowExceeding={board.allowExceeding}
@@ -67,7 +184,7 @@ function BoardLayoutRow({
       <RingGrid
         color={board.color}
         completedDates={dates}
-        weeks={1}
+        weeks={5}
         amountPerLog={board.defaultAmount}
         dailyTarget={board.dailyTargetAmount}
       />
@@ -85,35 +202,6 @@ function BoardLayoutRow({
       />
     );
 
-  const checkInButton = (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${board.name} check in`}
-      onPress={onToggleToday}
-      disabled={toggling}
-      style={({ pressed }) => ({
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: 44,
-        borderRadius: radius.md,
-        backgroundColor: isCheckedInToday ? board.color : colors.bgSurfaceRaised,
-        borderWidth: 2,
-        borderColor: board.color,
-        opacity: toggling ? 0.6 : pressed ? 0.85 : 1,
-      })}
-    >
-      <Text
-        style={{
-          fontSize: 15,
-          fontWeight: '700',
-          color: isCheckedInToday ? '#FFFFFF' : board.color,
-        }}
-      >
-        {toggling ? 'Saving…' : isCheckedInToday ? `Checked in ${board.unit || ''}`.trim() : 'Check in'}
-      </Text>
-    </Pressable>
-  );
-
   return (
     <View
       style={{
@@ -126,52 +214,66 @@ function BoardLayoutRow({
         gap: spacing.sm,
       }}
     >
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={board.name}
-        onPress={onPress}
-        onLongPress={onLongPress}
-        style={({ pressed }) => ({
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: spacing.sm,
-          opacity: pressed ? 0.85 : 1,
-        })}
-      >
-        <View
-          style={{
-            width: 44,
-            height: 44,
-            borderRadius: radius.full,
-            backgroundColor: colors.bgBase,
-            borderWidth: 1,
-            borderColor: colors.borderSubtle,
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={board.name}
+          onPress={onPress}
+          onLongPress={onLongPress}
+          style={({ pressed }) => ({
+            flex: 1,
+            flexDirection: 'row',
             alignItems: 'center',
-            justifyContent: 'center',
-          }}
+            gap: spacing.sm,
+            opacity: pressed ? 0.85 : 1,
+          })}
         >
-          <LucideIcon name={icon.icon} size={22} color={board.color} />
-        </View>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text
-            numberOfLines={1}
-            style={{ color: colors.textPrimary, fontSize: 17, fontWeight: '700' }}
+          <View
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: radius.full,
+              backgroundColor: colors.bgBase,
+              borderWidth: 1,
+              borderColor: colors.borderSubtle,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
           >
-            {board.name}
-          </Text>
-        </View>
-        {isPill && !board.archived ? (
-          <View style={{ alignSelf: 'center' }}>{pillStrip}</View>
+            <LucideIcon name={icon.icon} size={22} color={board.color} />
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text
+              numberOfLines={1}
+              ellipsizeMode="clip"
+              style={{ color: colors.textPrimary, fontSize: 17, fontWeight: '700' }}
+            >
+              {board.name}
+            </Text>
+          </View>
+          {isPill && !board.archived ? (
+            <View style={{ alignSelf: 'center' }}>{pillStrip}</View>
+          ) : null}
+        </Pressable>
+        {!board.archived ? (
+          <View style={{ alignSelf: 'center' }}>
+            <HoldCheckInButton
+              label={board.name}
+              color={board.color}
+              checkedIn={isCheckedInToday}
+              disabled={toggling}
+              onTap={onToggleToday}
+              onHoldComplete={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+                router.push({ pathname: '/modal/check-in', params: { boardId: board.id } });
+              }}
+            />
+          </View>
         ) : null}
-      </Pressable>
-      {board.archived ? null : isPill ? (
-        checkInButton
-      ) : (
-        <>
-          <View style={{ paddingVertical: spacing.xs, justifyContent: 'center' }}>{bodyLayout}</View>
-          {checkInButton}
-        </>
-      )}
+      </View>
+      {board.archived ? null : !isPill ? (
+        <View style={{ paddingVertical: spacing.xs, justifyContent: 'center' }}>{bodyLayout}</View>
+      ) : null}
     </View>
   );
 }

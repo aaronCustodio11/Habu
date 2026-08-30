@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Text, View, type LayoutChangeEvent } from 'react-native';
 import { useTheme } from '@/hooks/useTheme';
 import { addDays, fromISODate, todayISO } from '@/lib/dates';
 import { coverageRatio, intensityColor, withAlpha } from '@/lib/color';
@@ -44,10 +44,11 @@ export function PillGrid({
   amountPerLog,
   dailyTarget,
   allowExceeding = false,
-  cellSize = 16,
-  gap = 4,
+  cellSize = 12,
+  gap = 1,
 }: PillGridProps) {
   const { colors } = useTheme();
+  const [containerWidth, setContainerWidth] = useState(0);
   const today = todayISO();
 
   const completed = useMemo(() => new Set(completedDates ?? []), [completedDates]);
@@ -62,7 +63,26 @@ export function PillGrid({
   // Same gate as the preview: without allowExceeding, an over-target log is
   // capped at full opacity and never gets the saturated "exceeded" shade.
   const effectiveRatio = allowExceeding ? ratio : Math.min(1, ratio);
-  const doneFill = withAlpha(intensityColor(color, effectiveRatio), Math.max(0, Math.min(1, effectiveRatio)));
+
+  // Responsive by design: exactly seven day-columns (the current week) plus
+  // their gaps always fit the container width on any device — the columns keep
+  // a tight width so the strip stays compact on phone, tablet, or narrow card.
+  const usableWidth = containerWidth > 0 ? containerWidth : 360;
+  const effectiveCell = Math.max(12, Math.min(cellSize, Math.floor((usableWidth - gap * 6) / 7)));
+  // A narrow rounded bar: thinner than its column so pills stay slim, but tall
+  // enough to read as a full-height "line". Only the explicit `gap` separates
+  // neighbours; the slim width is the whole point of the pill look.
+  const pillWidth = Math.max(6, Math.min(9, Math.round(effectiveCell * 0.6)));
+  const pillHeight = Math.max(16, Math.round(effectiveCell * 3.0));
+  // Completed pills always read as filled: partial completions keep the color
+  // ramping toward the target but never drop below a visible opacity, so a done
+  // cell is never mistaken for an empty one.
+  const doneFill = withAlpha(
+    intensityColor(color, effectiveRatio),
+    Math.max(0.45, Math.min(1, effectiveRatio)),
+  );
+
+  const handleLayout = (e: LayoutChangeEvent) => setContainerWidth(e.nativeEvent.layout.width);
 
   // The current week, Sunday-first (relative to today's device-local day).
   const week = useMemo(() => {
@@ -71,10 +91,10 @@ export function PillGrid({
   }, [today]);
 
   return (
-    <View style={{ alignItems: 'center', gap: 4 }}>
+    <View style={{ alignItems: 'center', gap: 4 }} onLayout={handleLayout}>
       <View style={{ flexDirection: 'row', gap }} accessibilityRole="none">
         {WEEKDAY_LETTERS.map((label, col) => (
-          <View key={col} style={{ width: cellSize, alignItems: 'center' }}>
+          <View key={col} style={{ width: effectiveCell, alignItems: 'center' }}>
             <Text style={{ color: colors.textTertiary, fontSize: 10 }}>{label}</Text>
           </View>
         ))}
@@ -82,21 +102,21 @@ export function PillGrid({
 
       <View style={{ flexDirection: 'row', gap }}>
         {week.map((date, col) => {
-          const isFuture = date > today;
-          const done = !isFuture && completed.has(date);
+          const done = completed.has(date);
           const isToday = date === today;
           return (
-            <View
-              key={col}
-              style={{
-                width: cellSize,
-                height: Math.round(cellSize * 1.75),
-                borderRadius: cellSize / 3,
-                backgroundColor: isFuture ? 'transparent' : done ? doneFill : colors.borderSubtle,
-                borderWidth: isToday ? 1.5 : 0,
-                borderColor: isToday ? color : 'transparent',
-              }}
-            />
+            <View key={col} style={{ width: effectiveCell, alignItems: 'center' }}>
+              <View
+                style={{
+                  width: pillWidth,
+                  height: pillHeight,
+                  borderRadius: pillWidth / 2,
+                  backgroundColor: done ? doneFill : colors.borderSubtle,
+                  borderWidth: isToday ? 2 : 0,
+                  borderColor: isToday ? color : 'transparent',
+                }}
+              />
+            </View>
           );
         })}
       </View>

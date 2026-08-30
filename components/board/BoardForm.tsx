@@ -22,7 +22,7 @@ import { ColorPicker } from '@/components/board/ColorPicker';
 import { AmountStepper } from '@/components/board/AmountStepper';
 import { AmountPreview } from '@/components/board/AmountPreview';
 import { HeatmapGrid } from '@/components/layouts/HeatmapGrid';
-import { LayoutPicker } from '@/components/layouts/LayoutPicker';
+import { GridTypePicker } from '@/components/layouts/GridTypePicker';
 import { PillGrid } from '@/components/layouts/PillGrid';
 import { RingGrid } from '@/components/layouts/RingGrid';
 import { BOARD_ICONS, getBoardIcon } from '@/constants/Icons';
@@ -522,7 +522,7 @@ export function BoardForm({
             <LayoutPreview layout={layout}>
               <PillGrid
                 color={color}
-                cellSize={12}
+                cellSize={20}
                 gap={3}
                 completedDates={completedDates}
                 amountPerLog={defaultAmount}
@@ -549,8 +549,8 @@ export function BoardForm({
       </View>
 
       <View style={{ gap: spacing.sm }}>
-        <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Layout</Text>
-        <LayoutPicker value={layout} color={color} onChange={setLayout} />
+        <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Grid Type</Text>
+        <GridTypePicker value={layout} color={color} onChange={setLayout} />
       </View>
 
       <View style={{ gap: spacing.sm }}>

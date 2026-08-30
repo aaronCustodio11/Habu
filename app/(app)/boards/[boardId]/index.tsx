@@ -60,7 +60,7 @@ export default function BoardDetailScreen() {
         <View style={{ paddingTop: insets.top + spacing.sm, paddingHorizontal: spacing.lg }}>
           <View style={styles.header}>
             <BackButton />
-            <Text style={[styles.title, { color: colors.textPrimary }]} numberOfLines={1}>
+            <Text style={[styles.title, { color: colors.textPrimary }]} numberOfLines={1} ellipsizeMode="clip">
               {board.name}
             </Text>
             <View style={styles.actions}>
