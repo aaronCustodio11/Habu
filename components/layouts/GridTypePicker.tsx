@@ -6,7 +6,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { LAYOUT_OPTIONS, getLayoutLabel, type BoardLayout } from '@/constants/BoardLayouts';
 import { radius, spacing } from '@/constants/Colors';
 
-export interface LayoutPickerProps {
+export interface GridTypePickerProps {
   value: BoardLayout;
   /** The board color used for the selected option card. */
   color: string;
@@ -23,13 +23,13 @@ function tint(hex: string, alpha: number): string {
 }
 
 /**
- * Layout picker (design doc §4.3): a header row that reveals the three
+ * Grid type picker (design doc §4.3): a header row that reveals the three
  * visualization options (heatmap grid / pill grid / ring grid) on tap. Each
  * option is a card; the selected one is tinted + ringed in the board color.
  * The dropdown stays open after picking so the user can compare layouts before
  * collapsing it with the header chevron.
  */
-export function LayoutPicker({ value, color, onChange }: LayoutPickerProps) {
+export function GridTypePicker({ value, color, onChange }: GridTypePickerProps) {
   const { colors } = useTheme();
   const [expanded, setExpanded] = useState(false);
 
@@ -44,7 +44,7 @@ export function LayoutPicker({ value, color, onChange }: LayoutPickerProps) {
     >
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Choose a layout"
+        accessibilityLabel="Choose a grid type"
         onPress={() => setExpanded((prev) => !prev)}
         style={({ pressed }) => ({
           flexDirection: 'row',
@@ -53,10 +53,7 @@ export function LayoutPicker({ value, color, onChange }: LayoutPickerProps) {
           opacity: pressed ? 0.85 : 1,
         })}
       >
-        <View style={{ flex: 1 }}>
-          <Text style={{ color: colors.textPrimary, fontSize: 17 }}>{getLayoutLabel(value)}</Text>
-          <Text style={{ color: colors.textTertiary, fontSize: 12 }}>Visualization style</Text>
-        </View>
+        <Text style={{ flex: 1, color: colors.textPrimary, fontSize: 17 }}>{getLayoutLabel(value)}</Text>
         {expanded ? <ChevronUp size={24} color={colors.textTertiary} /> : <ChevronDown size={24} color={colors.textTertiary} />}
       </Pressable>
 
@@ -74,17 +71,16 @@ export function LayoutPicker({ value, color, onChange }: LayoutPickerProps) {
                   styles.row,
                   {
                     backgroundColor: selected ? tint(color, 0.14) : colors.bgSurfaceRaised,
-                    borderColor: selected ? color : colors.borderSubtle,
+                    borderColor: selected ? color : colors.bgSurfaceRaised,
                     borderWidth: selected ? 2 : 1,
                   },
-                  selected && styles.rowShadow,
                   pressed && { opacity: 0.75 },
                 ]}
               >
                 <View style={{ flex: 1 }}>
                   <Text
                     style={{
-                      color: '#FFFFFF',
+                      color: colors.textPrimary,
                       fontSize: 15,
                       fontWeight: selected ? '700' : '400',
                     }}
@@ -116,12 +112,5 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: radius.full,
-  },
-  rowShadow: {
-    shadowColor: '#000',
-    shadowOpacity: 0.14,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 4,
   },
 });

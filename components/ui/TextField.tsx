@@ -72,6 +72,7 @@ export function TextField({
             style={{
               position: 'absolute',
               left: variant === 'flat' ? spacing.xs : spacing.md,
+              right: variant === 'flat' ? spacing.xs : spacing.md,
               top: 0,
               bottom: 0,
               flexDirection: 'row',
@@ -79,7 +80,13 @@ export function TextField({
               pointerEvents: 'none',
             }}
           >
-            <Text style={{ color: colors.textTertiary, fontSize: 17 }}>{placeholder}</Text>
+            <Text
+              numberOfLines={1}
+              ellipsizeMode="clip"
+              style={{ color: colors.textTertiary, fontSize: 17, flexShrink: 1 }}
+            >
+              {placeholder}
+            </Text>
             <LucideIcon
               name={placeholderIcon}
               size={17}
